@@ -1,0 +1,231 @@
+<!doctype html>
+<br>
+<head>
+    <meta charset="utf-8">
+    <meta name="pdfkit-page-size" content="A4"/>
+    <title>Untitled Document</title>
+</head>
+
+
+<div style="font-weight: bold; font-size: 16pt; text-align: center;">
+    Акт сдачи-приемки № {NUMBER} от {DATE}
+</div>
+<br/>
+<div style="font-size: 15pt; text-align: center;">Исправление № -- от --</div>
+<br/>
+<br>
+<br>
+<p>Общество с ограниченной ответственностью "Гостиничные ресурсы" выполнил, {HOTEL_NAME} принял следующие работы</p>
+<br>
+<br>
+<p>Основание сдачи(передачи)<span style="padding-left: 50px;"> </span><u>Договор-оферта ред. {OFFER}, Акцепт ACCEPTED_AT</u></p>
+<table width="100%"
+       style="border-collapse: collapse; width: 100%;font-size: 12px">
+    <tr>
+        <td style="width:7%; text-align: center; border: 1px solid grey;">Номер по поряд-ку</td>
+        <td style="text-align: center;border: 1px solid grey; ">Наименование работы(услуг)</td>
+        <td style="width:7%; text-align: center;border: 1px solid grey;">Единица измере-ния</td>
+
+        <td style="width:7%; text-align: center;border: 1px solid grey; ">Кол-во</td>
+        <td style="width:10%;  text-align: center;border: 1px solid grey;">Цена (тариф) за единицу</td>
+        <td style="width:15%;  text-align: center;border: 1px solid grey;">Стоимость работ (услуг) всего без налога
+        </td>
+        <td style="width:15%;  text-align: center;border: 1px solid grey;">Сумма налога</td>
+        <td style="width:15%;  text-align: center;border: 1px solid grey;">Сумма с учетом налога</td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 8px;border: 1px solid grey;">1</td>
+        <td style="text-align: center; font-size: 8px;border: 1px solid grey;">2</td>
+        <td style="text-align: center; font-size: 8px;border: 1px solid grey;">3</td>
+        <td style="text-align: center; font-size: 8px;border: 1px solid grey;">4</td>
+        <td style="text-align: center; font-size: 8px;border: 1px solid grey;">5</td>
+        <td style="text-align: center; font-size: 8px;border: 1px solid grey;">6</td>
+        <td style="text-align: center; font-size: 8px;border: 1px solid grey;">7</td>
+        <td style="text-align: center; font-size: 8px;border: 1px solid grey;">8</td>
+    </tr>
+    {DATA}
+    <tr>
+        <td style="text-align: center; border-bottom: 0px"></td>
+        <td style="text-align: center; "></td>
+        <td style="text-align: center; "></td>
+        <td style="text-align: center; "></td>
+        <td style="text-align: right;font-weight: bold; ">Всего к оплате:</td>
+        <td style="text-align: right;border: 1px solid grey;font-weight: bold; ">{SUM_WITHOUT_TAX}
+        </td>
+        <td style="text-align: right; border: 1px solid grey;font-weight: bold; ">{SUM_TAX}</td>
+        <td style="text-align: right; border: 1px solid grey;font-weight: bold; ">{SUM}</td>
+
+    </tr>
+</table>
+</br>
+</br>
+</br>
+<table width="100%" style="border:0; width: 100%;font-size: 12px">
+    <tr>
+        <td style="width:23%; text-align: left; border: 0px solid black;">Всего оказано услуг на сумму</td>
+        <td style="text-align: left ;border-bottom: 1px ridge grey; ">{SUM_TEXT}</td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 8px;border: 0px ridge black;"></td>
+        <td style="text-align: center; font-size: 6px;border: 0px solid black;">прописью</td>
+    </tr>
+</table>
+<table width="100%" style="border:0; width: 100%;font-size: 12px">
+    <tr>
+        <td style="width:10%; text-align: left; border: 0px solid black;">в т.ч. НДС</td>
+        <td style="text-align: left ;border-bottom: 1px ridge grey; ">{SUM_TAX_TEXT}</td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 8px;border: 0px ridge black;"></td>
+        <td style="text-align: center; font-size: 6px;border: 0px solid black;">прописью</td>
+    </tr>
+</table>
+<table width="100%" style="border:0; width: 100%;font-size: 12px">
+    <tr>
+        <td style="width:23%; text-align: left; border: 0px solid black;">Идентификатор государственного контракта,
+            договора (соглашения)<br>(при наличии)
+        </td>
+        <td style="text-align: left ;border-bottom: 1px ridge grey; "> </td>
+    </tr>
+
+</table>
+
+<br>
+<br>
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0" style="page-break-inside:avoid;font-size: 11px;">
+    <tbody>
+    <tr>
+        <td width="50%" style="padding-right: 5px; border-right: 2px solid #000">
+            <div style="padding-left:5px;">Сдал</div>
+            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tbody>
+                <tr>
+                    <td width="200" style="border-bottom: 1px solid grey; padding: 5px">Общество с ограниченной
+                        ответственностью "Гостиничные ресурсы"
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                <tbody>
+                <tr>
+                    <td width="10%">ИНН</td>
+                    <td style="border-bottom: 1px solid grey;">9703086470</td>
+                    <td width="10">КПП</td>
+                    <td style="border-bottom: 1px solid grey;">770301001</td>
+                </tr>
+                </tbody>
+            </table>
+            <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                <tbody>
+                <tr>
+                    <td width="7%">Адрес</td>
+                    <td style="border-bottom: 1px solid grey;">123610, г. Москва, вн. тер. г. Муниципальный округ Пресненский, наб. Краснопресненская, д.12, этаж/подъезд 2/7, помещение 208
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <br>
+            <br>
+            <br>
+            <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                <tbody>
+                <tr>
+                    <td width="10%" style="border-bottom: 1px solid grey;">ГЕНЕРАЛЬНЫЙ ДИРЕКТОР</td>
+                    <td width="10px"></td>
+                    <td style="border-bottom: 1px solid grey;">Волков А.В.</td>
+                </tr>
+                <tr>
+                    <td width="10%" style="font-size: 6px;text-align: center ;">должность</td>
+                    <td width="10px"></td>
+                    <td style="font-size: 6px;text-align: center ;">Ф.И.О.</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                <tbody>
+                <tr>
+                    <td width="10%">Дата&nbsp;исполнения</td>
+                    <td width="10%" style="font-size: 6px;text-align: right ;">«</td>
+                    <td width="30%" style="border-bottom: 1px solid grey;">{DAY}</td>
+                    <td width="10%" style="font-size: 6px;text-align: left ;">»</td>
+                    <td width="2%"></td>
+                    <td width="10%" style="border-bottom: 1px solid grey;">{MONTH}</td>
+                    <td width="10%">{YEAR}&nbsp;года</td>
+
+                </tr>
+
+                </tbody>
+            </table>
+
+
+        </td>
+        <td style="padding-left: 5px;vertical-align: top;">
+            <div style="padding-left:5px;">Принял</div>
+            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tbody>
+                <tr>
+                    <td width="200" style="border-bottom: 1px solid grey; padding: 5px">{HOTEL_NAME}
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                <tbody>
+                <tr>
+                    <td width="10%">ИНН</td>
+                    <td style="border-bottom: 1px solid grey;">{INN}</td>
+                    <td width="10">КПП</td>
+                    <td style="border-bottom: 1px solid grey;">{KPP}</td>
+                </tr>
+                </tbody>
+            </table>
+                        <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                <tbody>
+                <tr>
+                    <td width="7%">Адрес</td>
+                    <td style="border-bottom: 1px solid grey;">{HOTEL_ADDRESS}
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <br>
+            <br>
+            <br>
+            <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                <tbody>
+                <tr>
+                    <td width="10%" style="border-bottom: 1px solid grey;"></td>
+                    <td width="10px"></td>
+                    <td style="border-bottom: 1px solid grey;">{PODPISANT}</td>
+                </tr>
+                <tr>
+                    <td width="10%" style="font-size: 6px;text-align: center ;">должность</td>
+                    <td width="10px"></td>
+                    <td style="font-size: 6px;text-align: center ;">Ф.И.О.</td>
+                </tr>
+                </tbody>
+            </table>
+            <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                <tbody>
+                <tr>
+                    <td width="10%">Дата&nbsp;приема</td>
+                    <td width="10%" style="font-size: 6px;text-align: right ;">«</td>
+                    <td width="30%" style="border-bottom: 1px solid grey;"></td>
+                    <td width="10%" style="font-size: 6px;text-align: left ;">»</td>
+                    <td width="2%"></td>
+                    <td width="10%" style="border-bottom: 1px solid grey;"></td>
+                    <td width="10%">{YEAR}&nbsp;года</td>
+
+                </tr>
+
+                </tbody>
+            </table>
+
+        </td>
+    </tr>
+    </tbody>
+</table>
+</html>

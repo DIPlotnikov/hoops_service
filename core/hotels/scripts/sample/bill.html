@@ -1,0 +1,155 @@
+﻿<div class="main">
+<table width="100%" style="font-family: Arial;">
+    <tr >
+        <td style="width: 68%; padding: 20px 0;">
+            <div style="font-weight: bold; font-size: 20pt; padding-left:5px; font-family: Arial;">ООО "ГОСТИНИЧНЫЕ РЕСУРСЫ"</div>
+<div style="font-weight: bold; font-size: 12pt; padding-left:5px; font-family: Arial;">Адрес: 123610, г. Москва, вн. тер. г. Муниципальный округ Пресненский,</br> наб. Краснопресненская, д.12, этаж/подъезд 2/7, помещение 208</div>
+<div style="font-weight: bold; font-size: 12pt; padding-left:5px; font-family: Arial;">Телефон: +7(495) 795-45-74
+</div>
+        </td>
+      
+    </tr>
+    
+</table>
+
+
+<table width="100%" border="2" style="border-collapse: collapse; width: 100%; font-family: Arial;" cellpadding="2" cellspacing="2">
+    <tr style="">
+        <td colspan="2" rowspan="2" style="min-height:13mm; width: 105mm;">
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="height: 13mm;">
+                <tr>
+                    <td valign="top">
+                        <div>АО "ТИНЬКОФФ БАНК"</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="bottom" style="height: 3mm;">
+                        <div style="font-size:10pt;">Банк получателя</div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+        <td style="min-height:7mm;height:auto; width: 25mm;">
+            <div>БИK</div>
+        </td>
+        <td rowspan="2" style="vertical-align: top; width: 60mm;">
+            <div style=" height: 7mm; line-height: 7mm; vertical-align: middle;">044525974</div>
+            <div>40702810910001361876</div>
+        </td>
+    </tr>
+    <tr>
+        <td style="width: 25mm;">
+            <div>Сч. №</div>
+        </td>
+    </tr>
+    <tr>
+        <td style="min-height:6mm; height:auto; width: 50mm;">
+            <div>ИНН 9703086470</div>
+        </td>
+        <td style="min-height:6mm; height:auto; width: 55mm;">
+            <div>КПП 770301001</div>
+        </td>
+        <td rowspan="2" style="min-height:19mm; height:auto; vertical-align: top; width: 25mm;">
+            <div>Кор. №</div>
+        </td>
+        <td rowspan="2" style="min-height:19mm; height:auto; vertical-align: top; width: 60mm;">
+            <div>30101810145250000974</div>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" style="min-height:13mm; height:auto;">
+
+            <table border="0" cellpadding="0" cellspacing="0" style="height: 13mm; width: 105mm;">
+                <tr>
+                    <td valign="top">
+                        <div>ООО "ГОСТИНИЧНЫЕ РЕСУРСЫ"</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td valign="bottom" style="height: 3mm;">
+                        <div style="font-size: 10pt;">Получатель</div>
+                    </td>
+                </tr>
+            </table>
+
+        </td>
+    </tr>
+</table>
+<br/>
+
+<div style="font-weight: bold; font-size: 25pt; padding-left:5px; font-family: Arial;">
+    Счет № {NUMBER} от {DATE}</div>
+<br/>
+
+<div style="background-color:#000000; width:100%; font-size:1px; height:2px;">&nbsp;</div>
+
+<table width="100%" style="font-family: Arial;">
+    <tr>
+        <td style="width: 30mm; vertical-align: top;">
+            <div style=" padding-left:2px; ">Плательщик:    </div>
+        </td>
+        <td>
+            <div style="font-weight:bold;  padding-left:2px;">
+                {UR NAME} ИНН {INN}, КПП {KPP},<br>
+<span style="font-weight: normal;">{ADDRES} ,<br> тел.: {PHONE NUMBER}</span>          </div>
+        </td>
+    </tr>
+
+</table>
+
+
+<table border="2" width="100%" cellpadding="2" cellspacing="2" style="border-collapse: collapse; width: 100%; font-family: Arial;">
+    <thead>
+    <tr>
+        <th style="width:13mm; ">№</th>
+       
+        <th>Товары (работы, услуги)</th>
+        <th style="width:20mm; ">Кол-во</th>
+
+        <th style="width:27mm;  ">Цена</th>
+        <th style="width:27mm;  ">Сумма</th>
+    </tr>
+    </thead>
+    <tbody >
+    {GOODS_TR}
+    </tbody>
+</table>
+
+<table style="font-family: Arial;" border="0" width="100%" cellpadding="1" cellspacing="1">
+    <tr>
+        <td></td>
+        <td style="width:27mm; font-weight:bold;  text-align:right;">Итого:</td>
+        <td style="width:27mm; font-weight:bold;  text-align: center; ">{TOTAL_SUM_float}</td>
+    </tr>
+  <tr>
+        <td></td>
+        <td style="width:27mm; font-weight:bold;  text-align:right;">В том числе НДС:</td>
+        <td style="width:27mm; font-weight:bold;  text-align: center; ">{NDS_float}</td>
+    </tr>
+  <tr>
+        <td></td>
+        <td style="width:37mm; font-weight:bold;  text-align:right;">Всего к оплате:</td>
+        <td style="width:27mm; font-weight:bold;  text-align: center; ">{TOTAL_SUM_float}</td>
+    </tr>
+</table>
+
+<br />
+<div style="font-family: Arial;">
+Всего наименований {GOODS_COUNT} на сумму {TOTAL_SUM_float} руб.<br />
+{TOTAL_SUM_string}, в том числе НДС - {NDS_string}.</div>
+<br /><br />
+<div style="background-color:#000000; width:100%; font-size:1px; height:2px;">&nbsp;</div>
+<br/>
+
+
+<div>Генеральный директор Волков А.В. </div>
+<br/>  <br /><br />
+
+<!--<div>Главный бухгалтер ______________________</div>
+<br/>
+
+<div style="width: 85mm;text-align:center;">М.П.</div>
+<br/>
+  </div>
+  <br/>  <br /><br /><br/>  <br /><br /><br/>  <br /><br />
+</div>-->

@@ -1,0 +1,57 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{% if form.errors %}{% translate "Error:" %} {% endif %}{{ block.super }}{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static "admin/css/login.css" %}">
+{{ form.media }}
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} login{% endblock %}
+
+{% block usertools %}{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block nav-sidebar %}{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block content %}
+
+    {% if form.errors and not form.non_field_errors %}
+<p class="errornote">
+{% blocktranslate count counter=form.errors.items|length %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}
+</p>
+{% endif %}
+
+{% if form.non_field_errors %}
+{% for error in form.non_field_errors %}
+<p class="errornote">
+    {{ error }}
+</p>
+{% endfor %}
+{% endif %}
+    <div id="content-main">
+
+<body>
+    <h1>Вход</h1>
+    {% if error_message %}
+        <p style="color:red;">{{ error_message }}</p>
+    {% endif %}
+    <form action="{% url 'verify_otp' %}" method="post">
+        {% csrf_token %}
+        <label for="username">Имя пользователя:</label><br><br>
+        <input type="text" id="username" name="username" value="{{ username }}"><br>
+
+        {% if flag %}
+            <label for="otp_code">Одноразовый пароль:</label><br>
+            <input type="text" id="otp_code" name="otp_code">  {% endif %}
+        <br><br>
+        <button type="submit">Войти</button>
+    </form>
+</body>
+
+</div>
+{% endblock %}

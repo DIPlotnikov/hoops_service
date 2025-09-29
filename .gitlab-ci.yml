@@ -1,0 +1,7 @@
+include:
+  - local: 'core/configs/gitlab/pipeline.develop.yml'
+    rules:
+      - if: $CI_COMMIT_BRANCH == "new-ci-cd"
+#  - local: 'configs/gitlab/pipeline.prod.yml'
+#    rules:
+#      - if: $CI_COMMIT_BRANCH == "main"

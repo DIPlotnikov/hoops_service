@@ -1,0 +1,434 @@
+{
+  "info": {
+    "_postman_id": "b6d1f2a4-6e37-4d56-9e2c-2f1b80a1b9d1",
+    "name": "HOOPS Service - Reports",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Коллекция для генерации и запроса отчётов в HOOPS Service через GraphQL (/graphql). Включает все поддерживаемые типы отчётов. Стандартный отчёт формируется отдельной веткой на бэкенде."
+  },
+  "item": [
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Manager",
+          "item": [
+            {
+              "name": "managerCreateReport - STANDART_REPORT (отдельное формирование)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": [ "{{baseUrl}}" ] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ManagerCreateStandardReport($input: InputForStatisticDoc!) {\\n  managerCreateReport(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"STANDART_REPORT\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "managerCreateReport - BY_TYPE",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ManagerCreateByType($input: InputForStatisticDoc!) {\\n  managerCreateReport(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"BY_TYPE\",\n      \"professionId\": [\"{{professionId1}}\", \"{{professionId2}}\"]\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "managerCreateReport - MANAGEMENT_REPORT",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ManagerCreateManagementReport($input: InputForStatisticDoc!) {\\n  managerCreateReport(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"MANAGEMENT_REPORT\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "managerCreateReport - MANAGERS_REPORT",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ManagerCreateManagersReport($input: InputForStatisticDoc!) {\\n  managerCreateReport(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"MANAGERS_REPORT\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "managerCreateReport - DIFFERENCE_REPORT",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ManagerCreateDifferenceReport($input: InputForStatisticDoc!) {\\n  managerCreateReport(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"DIFFERENCE_REPORT\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "managerCreateReport - EXECUTORS_LIST",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ManagerCreateExecutorsList($input: InputForStatisticDoc!) {\\n  managerCreateReport(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"EXECUTORS_LIST\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "managerCreateListExecutersTaskById (список исполнителей по заявке)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ManagerCreateListExecuters($input: inputForListExecuter!) {\\n  managerCreateListExecutersTaskById(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"id\": \"{{taskId}}\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "managerGetClosingDocumentsByFilters (список для менеджера)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}/graphql/", "host": ["{{baseUrl}}"], "path": ["graphql", ""] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query ManagerGetClosingDocs($input: InputForManagerQueryClosingDocuments!) {\\n  managerGetClosingDocumentsByFilters(input: $input) {\\n    edges {\\n      node { id hotel { id nameHotel } closingDatetime files { name path amount number } }\\n    }\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": null,\n      \"endDate\": null\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "managerGetClosingDocumentById (получить один документ по id)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query ManagerGetClosingDocById($input: InputForQueryClosingDocument!) {\\n  managerGetClosingDocumentById(input: $input) {\\n    id\\n    hotel { id nameHotel }\\n    closingDatetime\\n    files { name path amount number }\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"id\": \"{{closingDocumentId}}\"\n    }\n  }\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Executer",
+          "item": [
+            {
+              "name": "executerCreateReport - STANDART_REPORT",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ExecuterCreateStandardReport($input: InputForStatisticDocForExecuter!) {\\n  executerCreateReport(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"STANDART_REPORT\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "executerCreateReport - BY_TYPE",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ExecuterCreateByType($input: InputForStatisticDocForExecuter!) {\\n  executerCreateReport(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"BY_TYPE\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "executerCreateReport - FINANCIAL",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ExecuterCreateFinancial($input: InputForStatisticDocForExecuter!) {\\n  executerCreateReport(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"FINANCIAL\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "executerCreateReport - DIFFERENCE_REPORT",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation ExecuterCreateDifferenceReport($input: InputForStatisticDocForExecuter!) {\\n  executerCreateReport(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"DIFFERENCE_REPORT\"\n    }\n  }\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin",
+          "item": [
+            {
+              "name": "adminCreateReportByPeriodAndType - STANDART (отдельное формирование)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation AdminCreateStandard($input: InputForAdminCreateReport!) {\\n  adminCreateReportByPeriodAndType(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"STANDART\",\n      \"hotelId\": \"{{hotelId}}\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "adminCreateReportByPeriodAndType - ACTIVITY",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation AdminCreateActivity($input: InputForAdminCreateReport!) {\\n  adminCreateReportByPeriodAndType(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"ACTIVITY\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "adminCreateReportByPeriodAndType - PAYMENT_FOR_COORDINATORS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation AdminCreatePaymentForCoordinators($input: InputForAdminCreateReport!) {\\n  adminCreateReportByPeriodAndType(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"PAYMENT_FOR_COORDINATORS\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "adminCreateReportByPeriodAndType - ADMIN_STATISTIC (двухпериодный)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation AdminCreateAdminStatistic($input: InputForAdminCreateReport!) {\\n  adminCreateReportByPeriodAndType(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"startDateSecondPeriod\": \"{{startDate2}}\",\n      \"endDateSecondPeriod\": \"{{endDate2}}\",\n      \"type\": \"ADMIN_STATISTIC\"\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "adminCreateReportByPeriodAndType - EXECUTER_STANDART (по исполнителю)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" },
+                  { "key": "time-zone-offset", "value": "{{timeZoneOffset}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation AdminCreateExecuterStandard($input: InputForAdminCreateReport!) {\\n  adminCreateReportByPeriodAndType(input: $input) {\\n    path\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"type\": \"EXECUTER_STANDART\",\n      \"executerId\": \"{{executerId}}\"\n    }\n  }\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Closing Documents",
+          "item": [
+            {
+              "name": "adminCreateClosingDocumentByIdHotelAndStartEndDate (создание закрывающих документов, включает УПД)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation AdminCreateClosingDocs($input: InputForCreateClosingDocuments!) {\\n  adminCreateClosingDocumentByIdHotelAndStartEndDate(input: $input) {\\n    closingDocument {\\n      id\\n      hotel { id nameHotel }\\n      closingDatetime\\n      files { name path amount number }\\n    }\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"id\": \"{{hotelId}}\",\n      \"startDate\": \"{{startDate}}\",\n      \"endDate\": \"{{endDate}}\",\n      \"closingDate\": \"{{closingDate}}\",\n      \"joinPaymentDocs\": {{joinPaymentDocs}}\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "adminGetClosingDocumentsByFilters (список закрывающих документов)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query AdminGetClosingDocs($input: InputForQueryClosingDocuments!) {\\n  adminGetClosingDocumentsByFilters(input: $input) {\\n    edges {\\n      node { id hotel { id nameHotel } closingDatetime files { name path amount number } }\\n    }\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"idHotel\": \"{{hotelId}}\",\n      \"isArchive\": null,\n      \"isSent\": null,\n      \"startDate\": null,\n      \"endDate\": null,\n      \"isPaid\": null\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "adminGetClosingDocumentById (получить один документ по id)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query AdminGetClosingDocById($input: InputForQueryClosingDocument!) {\\n  adminGetClosingDocumentById(input: $input) {\\n    id\\n    hotel { id nameHotel }\\n    closingDatetime\\n    files { name path amount number }\\n  }\\n}\",\n  \"variables\": {\n    \"input\": {\n      \"id\": \"{{closingDocumentId}}\"\n    }\n  }\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Queries (list ready reports)",
+          "item": [
+            {
+              "name": "managerGetMyReport",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query { managerGetMyReport { path type } }\"\n}"
+                }
+              }
+            },
+            {
+              "name": "executerGetMyReport",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query { executerGetMyReport { path type } }\"\n}"
+                }
+              }
+            },
+            {
+              "name": "adminGetReports",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{jwt}}" }
+                ],
+                "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query { adminGetReports { path type } }\"\n}"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [],
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:18000/graphql/" },
+    { "key": "jwt", "value": "" },
+    { "key": "timeZoneOffset", "value": "-180" },
+    { "key": "startDate", "value": "2025-08-01T00:00:00Z" },
+    { "key": "endDate", "value": "2025-08-31T23:59:59Z" },
+    { "key": "startDate2", "value": "2025-07-01T00:00:00Z" },
+    { "key": "endDate2", "value": "2025-07-31T23:59:59Z" },
+    { "key": "professionId1", "value": "1" },
+    { "key": "professionId2", "value": "2" },
+    { "key": "taskId", "value": "1" },
+    { "key": "hotelId", "value": "1" },
+    { "key": "executerId", "value": "1" },
+    { "key": "closingDocumentId", "value": "1" },
+    { "key": "closingDate", "value": "2025-08-31T12:00:00Z" },
+    { "key": "joinPaymentDocs", "value": "false" }
+  ]
+}

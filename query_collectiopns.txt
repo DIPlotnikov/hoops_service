@@ -1,0 +1,92 @@
+{
+  "info": {
+    "_postman_id": "9948422a-11d5-4d02-acfe-6b8eaf5ace5e",
+    "name": "Hoops Task Lifecycle - Create/Update Task",
+    "description": "Коллекция для создания, редактирования и удаления заявок. Мутации: managerTaskUpsert, managerTaskDelete.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "47707875"
+  },
+  "item": [
+    {
+      "name": "Создать заявку (базовая профессия)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{jwt}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation CreateTask($input: inputForTaskUpsert!) { managerTaskUpsert(input: $input) { task { id startAtDate startAtTime duration countExecuters rent isClosed approvedStatus profession { id name } manager { id } additional { datetime description } } } }\",\n  \"variables\": {\n    \"input\": {\n      \"min_rating\": {{min_rating}},\n      \"for_favorite\": {{for_favorite}},\n      \"profession\": \"{{professionId}}\",\n      \"count_executers\": {{count_executers}},\n      \"rent\": {{rent}},\n      \"start_at\": [\"{{startAt1}}\"],\n      \"duration\": {{duration}},\n      \"comment\": \"{{comment}}\"\n    }\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+        "description": "Создание заявки по базовой профессии. Убедитесь, что hotel позволяет базовые профессии и дата start_at в будущем."
+      }
+    },
+    {
+      "name": "Создать заявку (с персональной профессией)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{jwt}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation CreateTask($input: inputForTaskUpsert!) { managerTaskUpsert(input: $input) { task { id startAtDate startAtTime duration countExecuters rent isClosed approvedStatus profession { id name } manager { id } additional { datetime description } } } }\",\n  \"variables\": {\n    \"input\": {\n      \"min_rating\": {{min_rating}},\n      \"for_favorite\": false,\n      \"profession\": \"{{professionId}}\",\n      \"personal_profession\": \"{{personalProfessionId}}\",\n      \"count_executers\": {{count_executers}},\n      \"rent\": {{rent}},\n      \"start_at\": [\"{{startAt1}}\"],\n      \"duration\": {{duration}},\n      \"comment\": \"{{comment}}\"\n    }\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+        "description": "Создание заявки с персональной профессией. Обязательно укажите personal_profession."
+      }
+    },
+    {
+      "name": "Редактировать заявку (id_task)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{jwt}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation UpdateTask($input: inputForTaskUpsert!) { managerTaskUpsert(input: $input) { task { id startAtDate startAtTime duration countExecuters rent isClosed approvedStatus profession { id name } manager { id } additional { datetime description } } } }\",\n  \"variables\": {\n    \"input\": {\n      \"id_task\": \"{{taskId}}\",\n      \"min_rating\": {{min_rating}},\n      \"for_favorite\": {{for_favorite}},\n      \"profession\": \"{{professionId}}\",\n      \"personal_profession\": {{usePersonal}} ? \"{{personalProfessionId}}\" : null,\n      \"count_executers\": {{count_executers}},\n      \"rent\": {{rent}},\n      \"start_at\": [\"{{startAt1}}\"],\n      \"duration\": {{duration}},\n      \"comment\": \"{{comment}}\"\n    }\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+        "description": "Редактирование существующей заявки. Вводите РОВНО одну дату в start_at (поле принимает список, но используется первый элемент). Изменения за <8 часов до старта запрещены."
+      }
+    },
+    {
+      "name": "Удалить заявку (managerTaskDelete)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{jwt}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation DeleteTask($id: ID!) { managerTaskDelete(id: $id) { id } }\",\n  \"variables\": { \"id\": \"{{taskId}}\" }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] },
+        "description": "Удаление заявки (нельзя удалять менее чем за 8 часов до старта)."
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000/graphql/", "type": "string" },
+    { "key": "jwt", "value": "", "type": "string" },
+
+    { "key": "min_rating", "value": "0", "type": "number" },
+    { "key": "for_favorite", "value": "false", "type": "boolean" },
+    { "key": "professionId", "value": "", "type": "string" },
+    { "key": "personalProfessionId", "value": "", "type": "string" },
+    { "key": "count_executers", "value": "1", "type": "number" },
+    { "key": "rent", "value": "1500", "type": "number" },
+    { "key": "startAt1", "value": "2025-09-15T09:00:00+03:00", "type": "string" },
+    { "key": "duration", "value": "8", "type": "number" },
+    { "key": "comment", "value": "Тестовая заявка", "type": "string" },
+
+    { "key": "taskId", "value": "", "type": "string" },
+    { "key": "usePersonal", "value": "false", "type": "boolean" }
+  ]
+}

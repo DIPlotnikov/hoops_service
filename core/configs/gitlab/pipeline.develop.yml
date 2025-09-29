@@ -1,0 +1,35 @@
+variables:
+  PORT: 8820
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - touch .env
+  - cat $DEV_ENV >> .env
+  - cat $DEV_MS_CFG >> core/mysql.cfg
+
+build_image_dev:
+  stage: build
+  script:
+    - docker build -t core core/.
+  tags:
+    - dev_hoopsservice_backend
+
+check_and_test_dev:
+  stage: test
+  script:
+    - docker run --rm --env-file .env service python manage.py check
+    - docker run --rm --env-file .env service python manage.py test
+  tags:
+    - dev_hoopsservice_backend
+
+deploy_dev:
+  stage: deploy
+  script:
+    - docker-compose up -d
+  after_script:
+    - docker image prune -a --force --filter "until=24h"
+  tags:
+    - dev_hoopsservice_backend

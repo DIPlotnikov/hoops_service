@@ -1,0 +1,38 @@
+variables:
+  PORT: 8810
+
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - touch .env
+  - cat $PROD_ENV >> .env
+
+build_image_prod:
+  stage: build
+  script:
+    - docker-compose build
+  tags:
+    - prod_pay_backend
+
+check_and_test_prod:
+  stage: test
+  script:
+    - docker run --rm --env-file .env service python manage.py check
+    - docker run --rm --env-file .env service python manage.py test
+  tags:
+    - prod_pay_backend
+
+deploy_prod:
+  stage: deploy
+  variables:
+    SECURE_FILES_DOWNLOAD_PATH: 'secrets/'
+  script:
+    - curl --silent "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer" | bash
+    - docker-compose up -d
+  after_script:
+    - docker image prune -a --force --filter "until=24h"
+  tags:
+    - prod_pay_backend
