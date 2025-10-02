@@ -10,6 +10,8 @@ from graphql.type.definition import GraphQLEnumValue
 
 from .mp import MonkeyPathingGraphQLEnumValue
 
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
 
 def get_host_ip():
     """Определяет локальный IPv4 адрес хоста с безопасными fallback.
