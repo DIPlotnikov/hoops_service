@@ -21,7 +21,7 @@ class RowForInvoice:
     """
     Данные для одной строки акта
     """
-
+    hotel_name: str
     number: int
     tasks: str
     # объем работы
@@ -145,6 +145,52 @@ class RowForInvoice:
             self.nds + "%" if self.nds else "-",
         )
 
+
+    @property
+    def get_tuple_with_data_for_group_cd(self) -> tuple:
+        """
+        Получение кортежа данных для строки закрывающих документов (группы компаний)
+        """
+        # Значения фиксированы для данного отчета.
+        okei = '769'
+        okei_name = 'шт'
+        volume = '1'
+
+        return (
+            int(self.number),
+            self.hotel_name,
+            okei,
+            volume,
+            self.hoops_cost_without_remuneration_without_tax_str, # объем фиксирован, сумма не меняется.
+            self.hoops_cost_without_remuneration_without_tax_str,
+            self.hoops_cost_without_remuneration,
+            self.hoops_cost_without_remuneration_tax_str,
+            okei_name,
+            self.nds + "%" if self.nds else "-",
+        )
+
+    @property
+    def get_tuple_with_data_for_group_cd_remuneration(self) -> tuple:
+        """
+        Получение кортежа данных для строки закрывающих документов (группы компаний)
+        """
+        # Значения фиксированы для данного отчета.
+        okei = '769'
+        okei_name = 'шт'
+        volume = '1'
+        return (
+            int(self.number),
+            self.hotel_name,
+            okei,
+            volume,
+            self.remuneration_without_tax_str, # объем фиксирован, сумма не меняется.
+            self.remuneration_without_tax_str,
+            self.remuneration,
+            self.remuneration_tax_str,
+            okei_name,
+            self.nds + "%" if self.nds else "-",
+        )
+
     @property
     def get_tuple_with_data_for_row_act_first_row(self) -> tuple:
         """
@@ -179,7 +225,7 @@ class RowForInvoice:
         return self.rent_for_executer, "{:.2f}".format(self.executer_cost), self.okei_name
 
 
-def format_executers_states_to_invoice_format(executor_states, nds=20.0, remuneration_percent=0) -> tuple:
+def format_executers_states_to_invoice_format(executor_states, nds=20.0, remuneration_percent=0, hotel=None) -> tuple:
     """
     Получение списка дата классов с данными для счет-фактуры
     @param remuneration_percent: процент вознаграждения
@@ -248,6 +294,7 @@ def format_executers_states_to_invoice_format(executor_states, nds=20.0, remuner
 
                 res_hoops.append(
                     RowForInvoice(
+                        hotel_name=hotel.nameHotel if hotel else '',
                         number=number_row,
                         tasks=", ".join(str(x) for x in set(tasks)),
                         volume=worktime_in_current_tasks_hours,
@@ -379,6 +426,177 @@ def invoice_creator(
         number_row += 1
         rows_for_all_task += rows_for_remenuration.format(
             number_row, *executer_state.get_tuple_with_data_for_row_diadok_row_remuneration[1:]
+        )
+
+    data = data.replace("{CODE_UPD}", str(number))
+    data = data.replace("{DATE}", closing_date.date().strftime("%d.%m.%y"))
+    data = data.replace("{DATE_OFFER}", offer_date)
+    data = data.replace("{ACCEPTED_AT}", accepted_at)
+    data = data.replace("{CLIENT_NAME}", requisites.owner.nameLegalEntity)
+    data = data.replace(
+        "{CLIENT_INN_KPP}",
+        f"{requisites.innBank}/{requisites.kpp}",
+    )
+    data = data.replace("{CLIENT_ADDRESS}", requisites.legal_address)
+
+    data = data.replace("{TABLE_CONTENT}", rows_for_all_task)
+
+    data = data.replace("{FINISH}", RowForInvoice.get_str_with_format(total_price))
+    data = data.replace("{SUM}", RowForInvoice.get_str_with_format(total_price - total_tax))
+    data = data.replace("{TAX}", RowForInvoice.get_str_with_format(total_tax))
+    data = data.replace(
+        "{UDP_REQ}", f'№ {str(number)} п/п 1-{len(executor_states)} от {closing_date.date().strftime("%d.%m.%y")}'
+    )
+
+    pdfkit.from_string(
+        data,
+        os.path.splitext(path_out)[0] + ".pdf",
+        options={
+            "page-size": "Letter",
+            "margin-top": "0.2in",
+            "margin-right": "0.75in",
+            "margin-bottom": "0.2in",
+            "margin-left": "0.75in",
+        },
+    )
+
+    path_out = os.path.splitext(path_out)[0] + ".pdf"
+    path_return = os.path.splitext(path_return)[0] + ".pdf"
+    server.getUrlForFile(path_out)
+
+    return path_return
+
+
+def invoice_creator_for_group_cd(
+    *,
+    executor_states,
+    number,
+    offer_date,
+    accepted_at,
+    total_price,
+    total_tax,
+    requisites,
+    closing_date=None,
+    date_start=None,
+    date_stop=None,
+):
+    """
+    Создание счёт-фактуры для группы организаций.
+    @param total_tax: налоговая сумма
+    @param total_price: общая стоимость
+    @param executor_states: отклики Исполнителей
+    @param number: Номер счет-фактуры
+    @param offer_date: Дата Оферты
+    @param closing_date: Дата закрытия документов
+    """
+    logger.info("Создание счет фактуры html")
+
+    if closing_date is None:
+        closing_date = datetime.now()
+
+    file = "SAMPLE_INVOICE.html"
+
+    rows_for_1_task = """
+    <tr>
+      <td style="border-right:2px solid #000"> </td>
+      <td>{0}</td>
+      <td>{1} Оплата услуг HOOPS Service за период {FORMATED_DATE}</td>
+      <td> </td>
+      <td>{2}</td>
+      <td>{8}</td>
+      <td>{3}</td>
+      <td>{4}</td>
+      <td>{5}</td>
+      <td></td>
+      <td>{9}</td>
+      <td>{7}</td>
+      <td>{6:.2f}</td>
+      <td> </td>
+      <td> </td>
+      <td> </td>
+    </tr>
+    """
+    rows_for_remenuration = """
+    <tr>
+      <td style="border-right:2px solid #000"> </td>
+      <td>{0}</td>
+      <td>{1} Вознаграждение за исполнение поручения за период {FORMATED_DATE}</td>
+      <td> </td>
+      <td>{2}</td>
+      <td>{8}</td>
+      <td>{3}</td>
+      <td>{4}</td>
+      <td>{5}</td>
+      <td></td>
+      <td>{9}</td>
+      <td>{7}</td>
+      <td>{6:.2f}</td>
+      <td> </td>
+      <td> </td>
+      <td> </td>
+    </tr>
+    """
+
+    rows_for_all_task = ""
+
+    server = SH.minioDocuments()
+    path_return = f"/closing_documents/{requisites.owner.id}/{closing_date.year}/{closing_date.month}/{number}.html"
+    path_suffix = f"{bucket}{path_return}"
+    path_out = f"/usr/local/share/minio/" + path_suffix
+    os.makedirs(os.path.dirname(path_out), exist_ok=True)
+    # copyfile(f"./{core}/scripts/sample/{file}", path_out)
+
+    sample_path = f"./{core}/scripts/sample/{file}"
+    with open(sample_path, "r", encoding="utf-8") as file:
+        data = file.read()
+    data = data.replace("{CODE_UPD}", str(number))
+    number_row = 0
+
+    # Формируем строку периода один раз (человекочитаемо на русском)
+    def _to_datetime(value):
+        """Приводит значение к datetime, если это строка — пробует распарсить ISO или %Y-%m-%d."""
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            # Пробуем несколько форматов без жёстких зависимостей
+            for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                try:
+                    return datetime.strptime(value.split("+")[0], fmt)
+                except Exception:
+                    continue
+        return None
+
+    def _format_date_ru(dt: datetime) -> str:
+        """Форматирует дату как '10 сентября 2025 года'."""
+        months = {
+            1: "января", 2: "февраля", 3: "марта", 4: "апреля", 5: "мая", 6: "июня",
+            7: "июля", 8: "августа", 9: "сентября", 10: "октября", 11: "ноября", 12: "декабря",
+        }
+        return f"{dt.day} {months.get(dt.month, '')} {dt.year} года"
+
+    def _format_period_ru(start_dt, end_dt) -> str:
+        """Возвращает строку вида: 'с 10 сентября 2025 года по 13 сентября 2025 года'.
+        Если даты отсутствуют или не распаршены — вернёт пустую строку."""
+        sd = _to_datetime(start_dt)
+        ed = _to_datetime(end_dt)
+        if not sd or not ed:
+            return ""
+        return f"с {_format_date_ru(sd)} по {_format_date_ru(ed)}"
+
+    formatted_period = _format_period_ru(date_start, date_stop)
+
+    for executer_state in executor_states:
+        number_row += 1
+        rows_for_all_task += rows_for_1_task.format(
+            number_row,
+            *executer_state.get_tuple_with_data_for_group_cd[1:],
+            FORMATED_DATE=formatted_period,
+        )
+        number_row += 1
+        rows_for_all_task += rows_for_remenuration.format(
+            number_row,
+            *executer_state.get_tuple_with_data_for_group_cd_remuneration[1:],
+            FORMATED_DATE=formatted_period,
         )
 
     data = data.replace("{CODE_UPD}", str(number))

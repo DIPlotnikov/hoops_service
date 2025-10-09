@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import json
 
 import graphene
 
@@ -15,11 +16,12 @@ from hotels.schemas.schema_handler import is_admin
 from hotels.scripts.act_priem import act_creator
 from hotels.scripts.bill_ver_create import BillCreator
 from hotels.scripts.diadok_builder import DiadokBuilder
-from hotels.scripts.invoice import format_executers_states_to_invoice_format, invoice_creator
+from hotels.scripts.invoice import format_executers_states_to_invoice_format, invoice_creator, \
+    invoice_creator_for_group_cd
 from hotels.utils.date_time import date_normalize
 from hotels.utils.tasks import get_executer_by_hotel_id_and_period, get_tasks_by_hotel_id_and_period
 from settings.models import get_nds, get_remuneration
-from .input import InputForCreateClosingDocuments
+from .input import InputForCreateClosingDocuments, CreateGroupedClosingDocumentsInput
 from .type import ClosingDocumentType
 
 
@@ -202,6 +204,330 @@ class CreateClosingDocument(graphene.Mutation):
         return CreateClosingDocument(closing_document=closing_document)
 
 
+class CreateGroupedClosingDocuments(graphene.Mutation):
+    """Создание закрывающих документов Администратором для всех организаций с указанным ИНН"""
+
+    class Arguments:
+        input = CreateGroupedClosingDocumentsInput(
+            required=True, description="Параметры для создания закрывающих документов"
+        )
+
+    closing_document = graphene.NonNull(ClosingDocumentType)
+
+    def mutate(root, info, input):
+        # закрывающие документы доступны Администратору с полным доступом
+        admin = is_admin(info=info, permission=RoleAdmin.Roles.DOCUMENT.value, model=True)
+        # ставка НДС
+        nds = get_nds()
+        # доля вознаграждения
+        remuneration = get_remuneration()
+        # получаем актуальную дату Договора оферты
+        offer_date = (
+            Agreement.objects.filter(is_actual=True, type=TypeAgreementEnum.OFFER.value)
+            .first()
+            .create_at.date()
+            .strftime("%d.%m.%Y")
+        )
+
+        # Валидация ИНН
+        inn = str(input.inn or "").strip()
+        if not inn.isdigit() or len(inn) not in (10, 12):
+            raise ValueError("Некорректный ИНН: допустимы только цифры длиной 10 или 12")
+
+        # Находим все организации по ИНН в реквизитах
+        requisites_qs = (
+            Requisites.objects.select_related("owner")
+            .filter(innBank=inn, owner__isnull=False)
+        )
+        if not requisites_qs.exists():
+            raise ValueError("Организации с указанным ИНН не найдены")
+
+        # Готовим агрегированные данные и список всех заявок
+        if not input.closing_date:
+            input.closing_date = datetime.now()
+        normalize_date = date_normalize(input.closing_date)
+
+        all_tasks = []
+        orgs_data = []
+        full_data_for_payment = []
+        full_sum_for_hoops = 0
+        full_sum_for_executer = 0
+        full_total_tax = 0
+
+        # Собираем общие данные
+        for req in requisites_qs:
+            hotel = req.owner
+            if not hotel:
+                print("[CreateGroupedClosingDocuments] Пропуск: у реквизитов нет владельца (owner)" )
+                continue
+
+            # Получаем заявки по организации. Функция может выбрасывать AssertionError, если заявок нет.
+            try:
+                tasks_by_org = get_tasks_by_hotel_id_and_period(
+                    hotel.id,
+                    input.start_date,
+                    input.end_date
+                )
+            except AssertionError as e:
+                print(f"[CreateGroupedClosingDocuments] Пропуск организации id={hotel.id}: {e}")
+                continue
+            except Exception as e:
+                print(f"[CreateGroupedClosingDocuments] Ошибка при получении заявок для id={hotel.id}: {e}")
+                continue
+
+            if not tasks_by_org:
+                print(f"[CreateGroupedClosingDocuments] Пропуск организации id={hotel.id}: заявок нет в периоде")
+                continue
+
+            # Получаем исполнителей. Функция может выбрасывать AssertionError, если исполнителей нет.
+            try:
+                executors_for_paid, _ = get_executer_by_hotel_id_and_period(
+                    hotel.id,
+                    input.start_date,
+                    input.end_date,
+                    type="primary"
+                )
+            except AssertionError as e:
+                print(f"[CreateGroupedClosingDocuments] Пропуск организации id={hotel.id}: {e}")
+                continue
+            except Exception as e:
+                print(f"[CreateGroupedClosingDocuments] Ошибка при получении исполнителей для id={hotel.id}: {e}")
+                continue
+
+            # Формируем данные для счетов. Возможен ValueError (например, незавершённые статусы исполнителей).
+            try:
+                data_for_payment, sum_for_hoops, sum_for_executer, total_tax = format_executers_states_to_invoice_format(
+                    executors_for_paid, nds=nds, remuneration_percent=remuneration, hotel=hotel
+                )
+            except ValueError as e:
+                print(f"[CreateGroupedClosingDocuments] Пропуск организации id={hotel.id}: {e}")
+                continue
+            except Exception as e:
+                print(f"[CreateGroupedClosingDocuments] Ошибка форматирования данных для id={hotel.id}: {e}")
+                continue
+
+            if not hotel.accepted_at:
+                print(f"[CreateGroupedClosingDocuments] Пропуск организации id={hotel.id}: отсутствует accepted_at")
+                continue
+            accepted_at = (hotel.accepted_at + timedelta(hours=12)).strftime("%d.%m.%Y")
+
+            orgs_data.append(
+                {
+                    "hotel_id": hotel.id,
+                    "hotel_name": hotel.nameLegalEntity,
+                    "requisites": {
+                        "inn": req.innBank,
+                        "kpp": req.kpp,
+                        "legal_address": req.legal_address,
+                        "signer": req.signer,
+                    },
+                    "accepted_at": accepted_at,
+                    "data_for_payment": data_for_payment,
+                    "sum_for_hoops": sum_for_hoops,
+                    "sum_for_executer": sum_for_executer,
+                    "total_tax": total_tax,
+                }
+            )
+
+            all_tasks.extend(list(tasks_by_org))
+
+            full_data_for_payment.extend(data_for_payment)
+            full_sum_for_hoops += sum_for_hoops
+            full_sum_for_executer += sum_for_executer
+            full_total_tax += total_tax
+
+            # получаем реквизиты компании TODO ВРЕМЕННО!!!
+            requisites = Requisites.objects.select_related("owner").get(owner__id=hotel.id)
+
+        if not orgs_data:
+            raise ValueError("Заявки за период не найдены ни у одной организации по указанному ИНН")
+
+        # Сравнение реквизитов между организациями и вывод алармов при отличиях
+        try:
+            requisites_keys = ("inn", "kpp", "legal_address", "signer")
+            base_req = orgs_data[0]["requisites"] if orgs_data else {}
+
+            # По-организационно: вывод различий относительно первой записи
+            for org in orgs_data[1:]:
+                current_req = org.get("requisites", {})
+                diffs = {}
+                for k in requisites_keys:
+                    if base_req.get(k) != current_req.get(k):
+                        diffs[k] = {"base": base_req.get(k), "current": current_req.get(k)}
+                if diffs:
+                    print(
+                        f"[CreateGroupedClosingDocuments][ALARM] Реквизиты отличаются у hotel_id={org['hotel_id']} (\"{org['hotel_name']}\"). "
+                        f"Отличия: {json.dumps(diffs, ensure_ascii=False)}"
+                    )
+
+            # По-полям: групповой срез различий
+            for k in requisites_keys:
+                groups = {}
+                for org in orgs_data:
+                    v = (org.get("requisites", {}).get(k))
+                    groups.setdefault(v, []).append(org["hotel_id"])
+                if len(groups.keys()) > 1:
+                    print(
+                        f"[CreateGroupedClosingDocuments] Поле реквизитов '{k}' различается между организациями: "
+                        f"{json.dumps(groups, ensure_ascii=False)}"
+                    )
+        except Exception as e:
+            print(f"[CreateGroupedClosingDocuments] Ошибка при сравнении реквизитов: {e}")
+
+        # Создаём общий закрывающий документ и привязываем все собранные заявки
+        closing_document = ClosingDocument(
+            start_date=input.start_date, end_date=input.end_date, closing_date=input.closing_date, admin=admin
+        )
+        closing_document.save()
+        for current_task in all_tasks:
+            closing_document.tasks.add(current_task)
+        closing_document.save()
+
+        # Возвращаем документ сразу после подготовки данных. Ниже генерация документов — оставлена без изменений.
+        # return CreateClosingDocument(closing_document=closing_document)
+        # пробуем
+        try:
+            # # список Исполнителей на оплату
+            # executors_for_paid, tasks = get_executer_by_hotel_id_and_period(
+            #     input.id, input.start_date, input.end_date, type="primary"
+            # )
+            #
+            # data_for_payment, sum_for_hoops, sum_for_executer, total_tax = format_executers_states_to_invoice_format(
+            #     executors_for_paid, nds=nds, remuneration_percent=remuneration, format='group_cd'
+            # )
+
+            accepted_at = (requisites.owner.accepted_at + timedelta(hours=12)).strftime("%d.%m.%Y")
+
+            print(orgs_data)
+            # производство счет-фактуры (УПД)
+            file = ClosingDocumentFile(name="Счёт-фактура", amount=0, number="-")
+            file.path = invoice_creator_for_group_cd(
+                executor_states=full_data_for_payment,
+                number=closing_document.pk,
+                offer_date=offer_date,
+                accepted_at=accepted_at,
+                total_price=full_sum_for_hoops,
+                total_tax=full_total_tax,
+                closing_date=normalize_date,
+                requisites=requisites,
+                date_start=input.start_date,
+                date_stop=input.end_date,
+            )
+            file.save()
+            closing_document.files.add(file)
+
+            # производство файла диадок
+
+            # diadok_file_path, amount_diadok = DiadokBuilder().create_document(
+            #     rows=full_data_for_payment,
+            #     total_price=full_sum_for_hoops,
+            #     total_tax=full_total_tax,
+            #     number=closing_document.pk,
+            #     date=normalize_date,
+            #     inn=requisites.innBank,
+            #     kpp=requisites.kpp,
+            #     hotel_name=requisites.owner.nameLegalEntity,
+            #     legal_address=requisites.legal_address,
+            #     date_offer=offer_date,
+            #     accepted_date=accepted_at,
+            # )
+            # file = ClosingDocumentFile.objects.create(
+            #     name="Счёт-фактура Диадок", amount=amount_diadok, number=closing_document.pk, path=diadok_file_path
+            # )
+            # closing_document.files.add(file)
+
+        #     # производство платежки
+        #     payment = Payment(start_date=input.start_date, end_date=input.end_date, admin=admin)
+        #     payment.save()
+        #     # пробуем
+        #     try:
+        #         # список номеров заявок
+        #         # формируем платежки
+        #         bill = BillCreator(
+        #             number=str(payment.pk),
+        #             email=tasks[0].manager.hotel.email,
+        #             ur_name=tasks[0].manager.hotel.nameLegalEntity,
+        #             adress=tasks[0].manager.hotel.requisites.legal_address,
+        #             inn=str(tasks[0].manager.hotel.requisites.innBank),
+        #             kpp=tasks[0].manager.hotel.requisites.kpp,
+        #             phone=tasks[0].manager.hotel.phone_number,
+        #             closing_date=normalize_date,
+        #         )
+        #         # формируем оба документа
+        #         payment.file_path_hoops, payment.file_path_hotel = bill.calculateBill(
+        #             data_for_payment,
+        #             offer_date=offer_date,
+        #             hoops_cost=sum_for_hoops,
+        #             total_tax=total_tax,
+        #             executer_cost=sum_for_executer,
+        #             join_documents=input.join_payment_docs,
+        #         )
+        #         payment.save()
+        #     # в случае ошибки
+        #     except Exception as e:
+        #         # удаляем Платежку
+        #         payment.delete()
+        #         raise ValueError(e)
+        #     if input.join_payment_docs:
+        #         # платежка объединенная
+        #         join_file = ClosingDocumentFile(
+        #             name="Счёт объединенный",
+        #             path=payment.file_path_hoops,
+        #             amount=sum_for_hoops + sum_for_executer,
+        #             number=payment.id,
+        #         )
+        #         join_file.save()
+        #         closing_document.files.add(join_file)
+        #     else:
+        #         # платежка в счет HOOPS
+        #         file_hoops = ClosingDocumentFile(
+        #             name="Счёт за услуги HOOPS", path=payment.file_path_hoops, amount=sum_for_hoops, number=payment.id
+        #         )
+        #         file_hoops.save()
+        #         closing_document.files.add(file_hoops)
+        #         # платежка в счет Исполнителей
+        #         file_executors = ClosingDocumentFile(
+        #             name="Счёт за услуги Исполнителей",
+        #             path=payment.file_path_hotel,
+        #             amount=sum_for_executer,
+        #             number=f"{payment.id}/1",
+        #         )
+        #         file_executors.save()
+        #         closing_document.files.add(file_executors)
+        #     payment.delete()
+        #
+        #     # акт сдачи приема
+        #     file_act = ClosingDocumentFile(name="Акт сдачи приемки", number=closing_document.pk)
+        #     file_act.path, file_act.amount = act_creator(
+        #         rows=data_for_payment,
+        #         total_tax=total_tax,
+        #         number=closing_document.pk,
+        #         offer_date=offer_date,
+        #         accepted_at=accepted_at,
+        #         inn=requisites.innBank,
+        #         kpp=requisites.kpp,
+        #         hotel_name=requisites.owner.nameLegalEntity,
+        #         address=requisites.legal_address,
+        #         hoops_cost=sum_for_hoops,
+        #         executer_cost=sum_for_executer,
+        #         signer=requisites.signer,
+        #         closing_date=normalize_date,
+        #     )
+        #     file_act.save()
+        #     closing_document.files.add(file_act)
+        #     ##
+        #     closing_document.save()
+        #
+        # # в случае ошибки
+        except Exception as e:
+            # удаляем объект
+            closing_document.delete()
+            # толкаем ошибку - в Админку можно сырую
+            raise ValueError(e)
+        return CreateClosingDocument(closing_document=closing_document)
+
+
+
 class SendClosingDocuments(graphene.Mutation):
     class Arguments:
         input = InputIds(required=True)
@@ -283,3 +609,4 @@ class MutationClosingDocument(graphene.ObjectType):
     admin_block_period_closing_documents_by_id = BlockPeriodClosingDocuments.Field(
         required=True, description="Блокировка периодов"
     )
+    adminCreateGroupedClosingDocuments = CreateGroupedClosingDocuments.Field(required=True)

@@ -10,6 +10,13 @@ class InputForCreateClosingDocuments(graphene.InputObjectType):
     closing_date = graphene.DateTime(required=False, description="Дата закрытия")
     join_payment_docs = graphene.Boolean(required=False, description="Объединить платежку")
 
+class CreateGroupedClosingDocumentsInput(graphene.InputObjectType):
+    """Создание закрывающих документов для всех организаций с указанным ИНН"""
+    inn = graphene.String(required=True)
+    start_date = graphene.DateTime(required=True, description="Начало периода")
+    end_date = graphene.DateTime(required=True, description="Конец периода")
+    closing_date = graphene.DateTime(required=False, description="Дата закрытия")
+    join_payment_docs = graphene.Boolean(required=False, description="Объединить платежку")
 
 class InputIdsClosingDocuments(graphene.InputObjectType):
     ids = graphene.List(graphene.NonNull(graphene.ID), required=True)
