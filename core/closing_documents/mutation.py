@@ -22,6 +22,7 @@ from hotels.utils.date_time import date_normalize
 from hotels.utils.tasks import get_executer_by_hotel_id_and_period, get_tasks_by_hotel_id_and_period
 from settings.models import get_nds, get_remuneration
 from .input import InputForCreateClosingDocuments, CreateGroupedClosingDocumentsInput
+from .utils.requisites_utils import check_and_log_requisites_differences
 from .type import ClosingDocumentType
 
 
@@ -297,7 +298,12 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
             # Формируем данные для счетов. Возможен ValueError (например, незавершённые статусы исполнителей).
             try:
                 data_for_payment, sum_for_hoops, sum_for_executer, total_tax = format_executers_states_to_invoice_format(
-                    executors_for_paid, nds=nds, remuneration_percent=remuneration, hotel=hotel
+                    executor_states=executors_for_paid,
+                    nds=nds,
+                    remuneration_percent=remuneration,
+                    hotel=hotel,
+                    date_start=input.start_date,
+                    date_end=input.end_date,
                 )
             except ValueError as e:
                 print(f"[CreateGroupedClosingDocuments] Пропуск организации id={hotel.id}: {e}")
@@ -343,36 +349,7 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
             raise ValueError("Заявки за период не найдены ни у одной организации по указанному ИНН")
 
         # Сравнение реквизитов между организациями и вывод алармов при отличиях
-        try:
-            requisites_keys = ("inn", "kpp", "legal_address", "signer")
-            base_req = orgs_data[0]["requisites"] if orgs_data else {}
-
-            # По-организационно: вывод различий относительно первой записи
-            for org in orgs_data[1:]:
-                current_req = org.get("requisites", {})
-                diffs = {}
-                for k in requisites_keys:
-                    if base_req.get(k) != current_req.get(k):
-                        diffs[k] = {"base": base_req.get(k), "current": current_req.get(k)}
-                if diffs:
-                    print(
-                        f"[CreateGroupedClosingDocuments][ALARM] Реквизиты отличаются у hotel_id={org['hotel_id']} (\"{org['hotel_name']}\"). "
-                        f"Отличия: {json.dumps(diffs, ensure_ascii=False)}"
-                    )
-
-            # По-полям: групповой срез различий
-            for k in requisites_keys:
-                groups = {}
-                for org in orgs_data:
-                    v = (org.get("requisites", {}).get(k))
-                    groups.setdefault(v, []).append(org["hotel_id"])
-                if len(groups.keys()) > 1:
-                    print(
-                        f"[CreateGroupedClosingDocuments] Поле реквизитов '{k}' различается между организациями: "
-                        f"{json.dumps(groups, ensure_ascii=False)}"
-                    )
-        except Exception as e:
-            print(f"[CreateGroupedClosingDocuments] Ошибка при сравнении реквизитов: {e}")
+        check_and_log_requisites_differences(orgs_data)
 
         # Создаём общий закрывающий документ и привязываем все собранные заявки
         closing_document = ClosingDocument(
@@ -398,7 +375,6 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
 
             accepted_at = (requisites.owner.accepted_at + timedelta(hours=12)).strftime("%d.%m.%Y")
 
-            print(orgs_data)
             # производство счет-фактуры (УПД)
             file = ClosingDocumentFile(name="Счёт-фактура", amount=0, number="-")
             file.path = invoice_creator_for_group_cd(
@@ -418,107 +394,113 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
 
             # производство файла диадок
 
-            # diadok_file_path, amount_diadok = DiadokBuilder().create_document(
-            #     rows=full_data_for_payment,
-            #     total_price=full_sum_for_hoops,
-            #     total_tax=full_total_tax,
-            #     number=closing_document.pk,
-            #     date=normalize_date,
-            #     inn=requisites.innBank,
-            #     kpp=requisites.kpp,
-            #     hotel_name=requisites.owner.nameLegalEntity,
-            #     legal_address=requisites.legal_address,
-            #     date_offer=offer_date,
-            #     accepted_date=accepted_at,
-            # )
-            # file = ClosingDocumentFile.objects.create(
-            #     name="Счёт-фактура Диадок", amount=amount_diadok, number=closing_document.pk, path=diadok_file_path
-            # )
-            # closing_document.files.add(file)
+            diadok_file_path, amount_diadok = DiadokBuilder().create_document(
+                rows=full_data_for_payment,
+                total_price=full_sum_for_hoops,
+                total_tax=full_total_tax,
+                number=closing_document.pk,
+                date=normalize_date,
+                inn=requisites.innBank,
+                kpp=requisites.kpp,
+                hotel_name=requisites.owner.nameLegalEntity,
+                legal_address=requisites.legal_address,
+                date_offer=offer_date,
+                accepted_date=accepted_at,
+            )
+            file = ClosingDocumentFile.objects.create(
+                name="Счёт-фактура Диадок", amount=amount_diadok, number=closing_document.pk, path=diadok_file_path
+            )
+            closing_document.files.add(file)
 
-        #     # производство платежки
-        #     payment = Payment(start_date=input.start_date, end_date=input.end_date, admin=admin)
-        #     payment.save()
-        #     # пробуем
-        #     try:
-        #         # список номеров заявок
-        #         # формируем платежки
-        #         bill = BillCreator(
-        #             number=str(payment.pk),
-        #             email=tasks[0].manager.hotel.email,
-        #             ur_name=tasks[0].manager.hotel.nameLegalEntity,
-        #             adress=tasks[0].manager.hotel.requisites.legal_address,
-        #             inn=str(tasks[0].manager.hotel.requisites.innBank),
-        #             kpp=tasks[0].manager.hotel.requisites.kpp,
-        #             phone=tasks[0].manager.hotel.phone_number,
-        #             closing_date=normalize_date,
-        #         )
-        #         # формируем оба документа
-        #         payment.file_path_hoops, payment.file_path_hotel = bill.calculateBill(
-        #             data_for_payment,
-        #             offer_date=offer_date,
-        #             hoops_cost=sum_for_hoops,
-        #             total_tax=total_tax,
-        #             executer_cost=sum_for_executer,
-        #             join_documents=input.join_payment_docs,
-        #         )
-        #         payment.save()
-        #     # в случае ошибки
-        #     except Exception as e:
-        #         # удаляем Платежку
-        #         payment.delete()
-        #         raise ValueError(e)
-        #     if input.join_payment_docs:
-        #         # платежка объединенная
-        #         join_file = ClosingDocumentFile(
-        #             name="Счёт объединенный",
-        #             path=payment.file_path_hoops,
-        #             amount=sum_for_hoops + sum_for_executer,
-        #             number=payment.id,
-        #         )
-        #         join_file.save()
-        #         closing_document.files.add(join_file)
-        #     else:
-        #         # платежка в счет HOOPS
-        #         file_hoops = ClosingDocumentFile(
-        #             name="Счёт за услуги HOOPS", path=payment.file_path_hoops, amount=sum_for_hoops, number=payment.id
-        #         )
-        #         file_hoops.save()
-        #         closing_document.files.add(file_hoops)
-        #         # платежка в счет Исполнителей
-        #         file_executors = ClosingDocumentFile(
-        #             name="Счёт за услуги Исполнителей",
-        #             path=payment.file_path_hotel,
-        #             amount=sum_for_executer,
-        #             number=f"{payment.id}/1",
-        #         )
-        #         file_executors.save()
-        #         closing_document.files.add(file_executors)
-        #     payment.delete()
-        #
-        #     # акт сдачи приема
-        #     file_act = ClosingDocumentFile(name="Акт сдачи приемки", number=closing_document.pk)
-        #     file_act.path, file_act.amount = act_creator(
-        #         rows=data_for_payment,
-        #         total_tax=total_tax,
-        #         number=closing_document.pk,
-        #         offer_date=offer_date,
-        #         accepted_at=accepted_at,
-        #         inn=requisites.innBank,
-        #         kpp=requisites.kpp,
-        #         hotel_name=requisites.owner.nameLegalEntity,
-        #         address=requisites.legal_address,
-        #         hoops_cost=sum_for_hoops,
-        #         executer_cost=sum_for_executer,
-        #         signer=requisites.signer,
-        #         closing_date=normalize_date,
-        #     )
-        #     file_act.save()
-        #     closing_document.files.add(file_act)
-        #     ##
-        #     closing_document.save()
-        #
-        # # в случае ошибки
+            # производство платежки
+            payment = Payment(start_date=input.start_date, end_date=input.end_date, admin=admin)
+            payment.save()
+            # пробуем
+            try:
+                # список номеров заявок
+                # формируем платежки
+                bill = BillCreator(
+                    number=str(payment.pk),
+                    email=all_tasks[0].manager.hotel.email,
+                    ur_name=all_tasks[0].manager.hotel.nameLegalEntity,
+                    adress=all_tasks[0].manager.hotel.requisites.legal_address,
+                    inn=str(all_tasks[0].manager.hotel.requisites.innBank),
+                    kpp=all_tasks[0].manager.hotel.requisites.kpp,
+                    phone=all_tasks[0].manager.hotel.phone_number,
+                    closing_date=normalize_date,
+                )
+                # формируем оба документа
+                payment.file_path_hoops, payment.file_path_hotel = bill.calculateBill(
+                    rows=full_data_for_payment,
+                    offer_date=offer_date,
+                    hoops_cost=full_sum_for_hoops,
+                    total_tax=full_total_tax,
+                    executer_cost=full_sum_for_executer,
+                    join_documents=input.join_payment_docs,
+                    for_group=True,
+                )
+                payment.save()
+            # в случае ошибки
+            except Exception as e:
+                # удаляем Платежку
+                payment.delete()
+                raise ValueError(e)
+
+
+            if input.join_payment_docs:
+                # платежка объединенная
+                join_file = ClosingDocumentFile(
+                    name="Счёт объединенный",
+                    path=payment.file_path_hoops,
+                    amount=full_sum_for_hoops + full_sum_for_executer,
+                    number=payment.id,
+                )
+                join_file.save()
+                closing_document.files.add(join_file)
+            else:
+                # платежка в счет HOOPS
+                file_hoops = ClosingDocumentFile(
+                    name="Счёт за услуги HOOPS",
+                    path=payment.file_path_hoops,
+                    amount=full_sum_for_hoops,
+                    number=payment.id
+                )
+                file_hoops.save()
+                closing_document.files.add(file_hoops)
+                # платежка в счет Исполнителей
+                file_executors = ClosingDocumentFile(
+                    name="Счёт за услуги Исполнителей",
+                    path=payment.file_path_hotel,
+                    amount=full_sum_for_executer,
+                    number=f"{payment.id}/1",
+                )
+                file_executors.save()
+                closing_document.files.add(file_executors)
+            payment.delete()
+
+            # акт сдачи приема
+            file_act = ClosingDocumentFile(name="Акт сдачи приемки", number=closing_document.pk)
+            file_act.path, file_act.amount = act_creator(
+                rows=full_data_for_payment,
+                total_tax=full_total_tax,
+                number=closing_document.pk,
+                offer_date=offer_date,
+                accepted_at=accepted_at,
+                inn=requisites.innBank,
+                kpp=requisites.kpp,
+                hotel_name=requisites.owner.nameLegalEntity,
+                address=requisites.legal_address,
+                hoops_cost=full_sum_for_hoops,
+                executer_cost=full_sum_for_executer,
+                signer=requisites.signer,
+                closing_date=normalize_date,
+            )
+            file_act.save()
+            closing_document.files.add(file_act)
+            ##
+            closing_document.save()
+
+        # в случае ошибки
         except Exception as e:
             # удаляем объект
             closing_document.delete()

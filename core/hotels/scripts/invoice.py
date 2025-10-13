@@ -2,6 +2,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 import pdfkit
 from django.db.models import Count
@@ -12,6 +13,9 @@ from ..config import bucket as bucket
 from ..config import core as core
 from ..models import Profession
 from ..scripts import server_handler as SH
+from .utils.date_utils import (
+    format_period_ru
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +56,10 @@ class RowForInvoice:
     hoops_cost_without_remuneration_tax_str: str
     hoops_cost_without_remuneration_rent_str: str
 
+    # Дополнительные поля (опциональны для совместимости с одиночным режимом)
+    date_start: Optional[str] = ""
+    date_end: Optional[str] = ""
+
     @property
     def text_for_hoops(self):
         return f"Стоимость Услуг HOOPS Service по заявкам {self.tasks}"
@@ -66,6 +74,25 @@ class RowForInvoice:
             "Оплата HOOPS для выплаты исполнителям согласно раздела 4 договора оферты от {DATE_OFFER} за оказанные услуги по заявкам  "
             + self.tasks
         )
+
+    @property
+    def text_for_hoops_gcd(self):
+        return (f"{self.hotel_name} "
+                f"Оплата Услуг HOOPS Service за период "
+                f"{format_period_ru(self.date_start, self.date_end)}")
+
+    @property
+    def text_for_remuneration_gcd(self):
+        return (f"{self.hotel_name} "
+                f"Вознаграждение за исполнение поручения за период "
+                f"{format_period_ru(self.date_start, self.date_end)}")
+
+    @property
+    def text_for_executer_gcd(self):
+        return (f"{self.hotel_name} "
+                f"Оплата HOOPS для выплаты исполнителям за период "
+                f"{format_period_ru(self.date_start, self.date_end)}")
+
 
     @staticmethod
     def get_str_with_format(value) -> str:
@@ -101,6 +128,43 @@ class RowForInvoice:
         Кортеж данных для счета - строка для оплаты услуг Исполнителей
         """
         return self.text_for_executer, self.executer_cost, self.volume_str, self.rent_for_executer
+
+
+    @property
+    def get_tuple_with_data_for_row_bill_hoops_group_cd(self):
+        """
+        Кортеж данных для счета - строка для оплаты услуг HOOPS
+        """
+        volume = '1'
+        return (
+            self.text_for_hoops_gcd,
+            self.hoops_cost_without_remuneration,
+            volume,
+            self.hoops_cost_without_remuneration,
+        )
+
+
+    @property
+    def get_tuple_with_data_for_row_bill_hoops_remuneration_for_group_cd(self):
+        """
+        Кортеж данных для счета - строка для оплаты услуг HOOPS
+        """
+        volume = '1'
+        return (self.text_for_remuneration_gcd,
+                self.remuneration,
+                volume,
+                self.remuneration)
+
+    @property
+    def get_tuple_with_data_for_row_bill_executer_for_group_cd(self):
+        """
+        Кортеж данных для счета - строка для оплаты услуг Исполнителей
+        """
+        volume = '1'
+        return (self.text_for_executer_gcd,
+                self.executer_cost,
+                volume,
+                self.executer_cost)
 
     @property
     def get_tuple_with_data_for_remuneration(self):
@@ -225,7 +289,14 @@ class RowForInvoice:
         return self.rent_for_executer, "{:.2f}".format(self.executer_cost), self.okei_name
 
 
-def format_executers_states_to_invoice_format(executor_states, nds=20.0, remuneration_percent=0, hotel=None) -> tuple:
+def format_executers_states_to_invoice_format(
+        executor_states,
+        nds=20.0,
+        remuneration_percent=0,
+        hotel=None,
+        date_start=None,
+        date_end=None,
+) -> tuple:
     """
     Получение списка дата классов с данными для счет-фактуры
     @param remuneration_percent: процент вознаграждения
@@ -324,6 +395,8 @@ def format_executers_states_to_invoice_format(executor_states, nds=20.0, remuner
                         remuneration_tax_str=remuneration_tax_str,
                         remuneration_rent_str=remuneration_rent_str,
                         hoops_cost_without_remuneration_rent_str=hoops_cost_without_remuneration_rent_str,
+                        date_start=date_start if date_start else None,
+                        date_end=date_end if date_end else None,
                     )
                 )
 
@@ -552,38 +625,7 @@ def invoice_creator_for_group_cd(
     data = data.replace("{CODE_UPD}", str(number))
     number_row = 0
 
-    # Формируем строку периода один раз (человекочитаемо на русском)
-    def _to_datetime(value):
-        """Приводит значение к datetime, если это строка — пробует распарсить ISO или %Y-%m-%d."""
-        if isinstance(value, datetime):
-            return value
-        if isinstance(value, str):
-            # Пробуем несколько форматов без жёстких зависимостей
-            for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
-                try:
-                    return datetime.strptime(value.split("+")[0], fmt)
-                except Exception:
-                    continue
-        return None
-
-    def _format_date_ru(dt: datetime) -> str:
-        """Форматирует дату как '10 сентября 2025 года'."""
-        months = {
-            1: "января", 2: "февраля", 3: "марта", 4: "апреля", 5: "мая", 6: "июня",
-            7: "июля", 8: "августа", 9: "сентября", 10: "октября", 11: "ноября", 12: "декабря",
-        }
-        return f"{dt.day} {months.get(dt.month, '')} {dt.year} года"
-
-    def _format_period_ru(start_dt, end_dt) -> str:
-        """Возвращает строку вида: 'с 10 сентября 2025 года по 13 сентября 2025 года'.
-        Если даты отсутствуют или не распаршены — вернёт пустую строку."""
-        sd = _to_datetime(start_dt)
-        ed = _to_datetime(end_dt)
-        if not sd or not ed:
-            return ""
-        return f"с {_format_date_ru(sd)} по {_format_date_ru(ed)}"
-
-    formatted_period = _format_period_ru(date_start, date_stop)
+    formatted_period = format_period_ru(date_start, date_stop)
 
     for executer_state in executor_states:
         number_row += 1

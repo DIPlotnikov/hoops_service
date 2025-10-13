@@ -1,3 +1,15 @@
+"""Модуль генерации счетов (HTML/PDF) для HOOPS и Исполнителей.
+
+Зависимость:
+ - pdfkit: конвертация HTML -> PDF (требуется wkhtmltopdf в системе).
+ - russian_numerals.NumberToRoubles: преобразование чисел в пропись (рубли/копейки).
+ - ..scripts.server_handler (SH): работа с MinIO (ссылки/доступ к файлам).
+ - ..tasks.send_bill: отправка счета по email (Celery задача).
+ - ..config.bucket/core: конфигурация бакета и префиксов путей.
+
+Использование:
+ - См. `core/closing_documents/mutation.py` → `CreateClosingDocument` → `BillCreator.calculateBill()`.
+"""
 import io
 import logging
 import os
@@ -16,10 +28,22 @@ from ..tasks import send_bill
 # падежи от числительных
 
 logger = logging.getLogger(__name__)
-a = NumberToRoubles()
+a = NumberToRoubles()  # Конвертер суммы в строковое представление (рубли/копейки) на русском
 
 
 class BillCreator(object):
+    """Класс для генерации HTML/PDF счетов и ссылок на них в MinIO.
+
+    Параметры конструктора:
+    - number: номер счета (обычно ID платежа/документа в БД).
+    - email: email получателя счета.
+    - ur_name: юр. наименование компании.
+    - adress: юридический адрес.
+    - inn: ИНН.
+    - kpp: КПП (может быть пустым для ИП).
+    - phone: контактный телефон.
+    - closing_date: дата закрытия периода (если не задана — текущее время).
+    """
     def __init__(
         self,
         *,
@@ -57,6 +81,7 @@ class BillCreator(object):
     </tr>"""
 
     def __create_pdf(self):
+        """Конвертирует текущий HTML-файл счета в PDF рядом с ним и обновляет `_file_path`."""
         pdfkit.from_file(self._file_path, os.path.splitext(self._file_path)[0] + ".pdf")
         self._file_path = os.path.splitext(self._file_path)[0] + ".pdf"
 
@@ -72,6 +97,12 @@ class BillCreator(object):
         offer_date="",
         postfix_name="",
     ):
+        """Рендерит HTML счета на основе шаблона и сохраняет его в MinIO FS.
+
+        - Если `verification=True`, создается счет на подтверждение реквизитов (1 позиция на 1 рубль).
+        - Для реальных платежей формируется путь вида `.../payment/{YYYY}/{M}/{number}/{suffix}_{number}.html`,
+          где `suffix` = `hops` (HOOPS) или `executer` (Исполнители). В шапке к номеру может добавляться `postfix_name`.
+        """
         if goods is None:
             goods = [("Подтверждение реквизитов организации и акцепт договора-оферты", 1.00, 1, 1)]
         if verification:
@@ -92,8 +123,9 @@ class BillCreator(object):
             logger.info(self._file_path)
 
         os.makedirs(os.path.dirname(self._file_path), exist_ok=True)
-        total_sum = sum(float(v) for _, v, _, _ in goods)
-
+        # [GROUP-CLOSING-DOCS] Обработка списка goods для нескольких организаций
+        # goods — список строк (tuple) для всех организаций, уже собранный на этапе мутации
+        total_sum = sum(float(v) for _, v, _, _ in goods)  # суммарная стоимость по всем строкам
         with open(path_from, "r") as file:
             data = file.read()
         data = data.replace("{NUMBER}", self._number + postfix_name)
@@ -124,11 +156,11 @@ class BillCreator(object):
             file.write(data)
 
     def send_bill_for_verification(self, url, nds):
-        """
-        Отправка письма с счетом
-        @param url: Домен
-        @param nds:
-        @return: None
+        """Формирует счет для проверки реквизитов и отправляет его PDF по email.
+
+        Параметры:
+        - url: домен/база для формирования ссылок в письме.
+        - nds: сумма НДС, отображаемая в документе.
         """
         path_from = f"./{core}/scripts/sample/bill.html"
         goods = ("Подтверждение реквизитов организации и акцепт договора-оферты", 1.00, 1, 1)
@@ -152,16 +184,32 @@ class BillCreator(object):
         data = data.replace("{GOODS_COUNT}", "1")
         data = data.replace("{DATE_OFFER}", "")
 
-        pdf = io.BytesIO(pdfkit.from_string(data))
+        pdf = io.BytesIO(pdfkit.from_string(data))  # генерируем PDF из HTML-строки (без сохранения HTML на диск)
         pdf.name = "HoopsService.pdf"
         del data
         send_bill(email=self._email, file=pdf, url=url)
 
-    def calculateBill(self, rows, offer_date, hoops_cost, executer_cost, total_tax, join_documents=False):
-        for_hoops = [x.get_tuple_with_data_for_row_bill_hoops for x in rows]
-        for_remuneration = [x.get_tuple_with_data_for_row_bill_hoops_remuneration for x in rows]
-        for_hoops.extend(for_remuneration)
-        for_executer = [x.get_tuple_with_data_for_row_bill_executer for x in rows]
+    def calculateBill(self, rows, offer_date, hoops_cost, executer_cost, total_tax, join_documents=False, for_group=False):
+        """Формирует объединенный или раздельные счета по данным `rows` и возвращает пути к файлам (PDF).
+
+        - rows: объекты с данными для строк счета; должны иметь свойства:
+          `get_tuple_with_data_for_row_bill_hoops`,
+          `get_tuple_with_data_for_row_bill_hoops_remuneration`,
+          `get_tuple_with_data_for_row_bill_executer`.
+        - join_documents: если True — формируется один объединенный счет (только HOOPS путь возвращается).
+        """
+        # Собираем строки в нужном для типа документа формате
+        if not for_group:
+            for_hoops = [x.get_tuple_with_data_for_row_bill_hoops for x in rows]
+            for_remuneration = [x.get_tuple_with_data_for_row_bill_hoops_remuneration for x in rows]
+            for_hoops.extend(for_remuneration)
+            for_executer = [x.get_tuple_with_data_for_row_bill_executer for x in rows]
+        else:
+            for_hoops = [x.get_tuple_with_data_for_row_bill_hoops_group_cd for x in rows]
+            for_remuneration = [x.get_tuple_with_data_for_row_bill_hoops_remuneration_for_group_cd for x in rows]
+            for_hoops.extend(for_remuneration)
+            for_executer = [x.get_tuple_with_data_for_row_bill_executer_for_group_cd for x in rows]
+
         if join_documents:
             for_hoops.extend(for_executer)
             self.createBill(verification=False, offer_date=offer_date, goods=for_hoops, is_hoops=True, nds=total_tax)
@@ -177,11 +225,13 @@ class BillCreator(object):
         return file_path_hoops, file_path_hotel
 
     def sendBill(self, pdf=False, url=""):
+        """Отправляет счет по email; опционально сначала генерирует PDF."""
         if pdf:
             self.__create_pdf()
         send_bill.delay(email=self._email, file=self._file_path, url=url)
 
     def getUrl(self, pdf=False):
+        """Возвращает относительный путь внутри бакета к текущему файлу; при `pdf=True` — сначала создает PDF."""
         logger.info(self._file_path.split(bucket)[1])
         if pdf:
             self.__create_pdf()
@@ -189,3 +239,4 @@ class BillCreator(object):
         url = server.getUrlForFile(self._file_path, response_headers={})
         url = self._file_path.split(bucket)[1]
         return url
+
