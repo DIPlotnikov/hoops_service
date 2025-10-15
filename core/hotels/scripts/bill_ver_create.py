@@ -189,7 +189,7 @@ class BillCreator(object):
         del data
         send_bill(email=self._email, file=pdf, url=url)
 
-    def calculateBill(self, rows, offer_date, hoops_cost, executer_cost, total_tax, join_documents=False, for_group=False):
+    def calculateBill(self, rows, offer_date, hoops_cost=None, executer_cost=None, total_tax=None, join_documents=False, for_group=False):
         """Формирует объединенный или раздельные счета по данным `rows` и возвращает пути к файлам (PDF).
 
         - rows: объекты с данными для строк счета; должны иметь свойства:
@@ -198,6 +198,8 @@ class BillCreator(object):
           `get_tuple_with_data_for_row_bill_executer`.
         - join_documents: если True — формируется один объединенный счет (только HOOPS путь возвращается).
         """
+        # Примечание: параметры `hoops_cost` и `executer_cost` не используются внутри метода,
+        # оставлены для обратной совместимости вызовов.
         # Собираем строки в нужном для типа документа формате
         if not for_group:
             for_hoops = [x.get_tuple_with_data_for_row_bill_hoops for x in rows]

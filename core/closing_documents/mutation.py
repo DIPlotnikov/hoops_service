@@ -13,7 +13,7 @@ from hotels.models import (
 )
 from hotels.schemas.admin.input import InputIds
 from hotels.schemas.schema_handler import is_admin
-from hotels.scripts.act_priem import act_creator
+from hotels.scripts.act_priem import act_creator, act_creator_for_group_cd
 from hotels.scripts.bill_ver_create import BillCreator
 from hotels.scripts.diadok_builder import DiadokBuilder
 from hotels.scripts.invoice import format_executers_states_to_invoice_format, invoice_creator, \
@@ -364,14 +364,6 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
         # return CreateClosingDocument(closing_document=closing_document)
         # пробуем
         try:
-            # # список Исполнителей на оплату
-            # executors_for_paid, tasks = get_executer_by_hotel_id_and_period(
-            #     input.id, input.start_date, input.end_date, type="primary"
-            # )
-            #
-            # data_for_payment, sum_for_hoops, sum_for_executer, total_tax = format_executers_states_to_invoice_format(
-            #     executors_for_paid, nds=nds, remuneration_percent=remuneration, format='group_cd'
-            # )
 
             accepted_at = (requisites.owner.accepted_at + timedelta(hours=12)).strftime("%d.%m.%Y")
 
@@ -419,6 +411,7 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
             try:
                 # список номеров заявок
                 # формируем платежки
+                # todo после такси с уточнением инфы нужно будет поменять.
                 bill = BillCreator(
                     number=str(payment.pk),
                     email=all_tasks[0].manager.hotel.email,
@@ -430,12 +423,11 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
                     closing_date=normalize_date,
                 )
                 # формируем оба документа
+                # Параметры hoops_cost/executer_cost не используются внутри calculateBill → не передаем их
                 payment.file_path_hoops, payment.file_path_hotel = bill.calculateBill(
                     rows=full_data_for_payment,
                     offer_date=offer_date,
-                    hoops_cost=full_sum_for_hoops,
                     total_tax=full_total_tax,
-                    executer_cost=full_sum_for_executer,
                     join_documents=input.join_payment_docs,
                     for_group=True,
                 )
@@ -480,7 +472,7 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
 
             # акт сдачи приема
             file_act = ClosingDocumentFile(name="Акт сдачи приемки", number=closing_document.pk)
-            file_act.path, file_act.amount = act_creator(
+            file_act.path, file_act.amount = act_creator_for_group_cd(
                 rows=full_data_for_payment,
                 total_tax=full_total_tax,
                 number=closing_document.pk,
@@ -506,7 +498,7 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
             closing_document.delete()
             # толкаем ошибку - в Админку можно сырую
             raise ValueError(e)
-        return CreateClosingDocument(closing_document=closing_document)
+        return CreateGroupedClosingDocuments(closing_document=closing_document)
 
 
 

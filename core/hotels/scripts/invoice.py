@@ -288,6 +288,47 @@ class RowForInvoice:
         """
         return self.rent_for_executer, "{:.2f}".format(self.executer_cost), self.okei_name
 
+    @property
+    def get_tuple_with_data_for_row_act_first_row_gcd(self) -> tuple:
+        """
+        Получение кортежа данных для первой строки акта
+        """
+        volume = '1'
+        return (
+            self.hotel_name,
+            volume,
+            self.hoops_cost_without_remuneration_without_tax_str,
+            self.hoops_cost_without_remuneration_without_tax_str,
+            self.hoops_cost_without_remuneration_tax_str,
+            self.hoops_cost_without_remuneration,
+        )
+
+    @property
+    def get_tuple_with_data_for_row_act_second_row_gcd(self) -> tuple:
+        """
+        Получение кортежа данных для первой строки акта
+        """
+        okei_name = 'шт'
+        return (
+            "{:.2f}".format(self.executer_cost), # стоимость работ всего (без налога)
+            "{:.2f}".format(self.executer_cost),
+            okei_name
+        )
+
+    @property
+    def get_tuple_with_data_for_row_act_remenuration_gcd(self) -> tuple:
+        """
+        Получение кортежа данных для первой строки акта
+        """
+        return (
+            self.remuneration_without_tax_str,
+            self.remuneration_without_tax_str,
+            self.remuneration_tax_str,
+            self.remuneration,
+        )
+
+
+
 
 def format_executers_states_to_invoice_format(
         executor_states,
