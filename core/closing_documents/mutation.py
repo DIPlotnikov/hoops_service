@@ -360,9 +360,6 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
             closing_document.tasks.add(current_task)
         closing_document.save()
 
-        # Возвращаем документ сразу после подготовки данных. Ниже генерация документов — оставлена без изменений.
-        # return CreateClosingDocument(closing_document=closing_document)
-        # пробуем
         try:
 
             accepted_at = (requisites.owner.accepted_at + timedelta(hours=12)).strftime("%d.%m.%Y")
@@ -384,9 +381,9 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
             file.save()
             closing_document.files.add(file)
 
-            # производство файла диадок
+            # производство файла диадок (групповой формат строк как в счет-фактуре группы)
 
-            diadok_file_path, amount_diadok = DiadokBuilder().create_document(
+            diadok_file_path, amount_diadok = DiadokBuilder().create_document_for_group_cd(
                 rows=full_data_for_payment,
                 total_price=full_sum_for_hoops,
                 total_tax=full_total_tax,
@@ -486,6 +483,8 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
                 executer_cost=full_sum_for_executer,
                 signer=requisites.signer,
                 closing_date=normalize_date,
+                date_start=input.start_date,
+                date_stop=input.end_date,
             )
             file_act.save()
             closing_document.files.add(file_act)

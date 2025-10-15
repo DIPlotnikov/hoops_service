@@ -31,6 +31,32 @@ class DiadokBuilder:
             </СведТов>
     """
 
+    # Шаблоны для группового формата (как в УПД): в НаимТов подставляется уже готовый текст
+    row_gcd = """
+            <СведТов НомСтр="{0}" НаимТов="{1}" ОКЕИ_Тов="{2}" КолТов="{3}" ЦенаТов="{4}" СтТовБезНДС="{5}" НалСт="{9}" СтТовУчНал="{6}" НаимЕдИзм="{8}">
+                <ДопСведТов />
+                <Акциз>
+                  <БезАкциз>без акциза</БезАкциз>
+                </Акциз>
+                <СумНал>
+                  <СумНал>{7}</СумНал>
+                </СумНал>
+
+            </СведТов>
+    """
+    row_remuneration_gcd = """
+            <СведТов НомСтр="{0}" НаимТов="{1}" ОКЕИ_Тов="{2}" КолТов="{3}" ЦенаТов="{4}" СтТовБезНДС="{5}" НалСт="{9}" СтТовУчНал="{6}" НаимЕдИзм="{8}">
+                <ДопСведТов />
+                <Акциз>
+                  <БезАкциз>без акциза</БезАкциз>
+                </Акциз>
+                <СумНал>
+                  <СумНал>{7}</СумНал>
+                </СумНал>
+
+            </СведТов>
+    """
+
     end_row = """
             <ВсегоОпл СтТовБезНДСВсего="{0}" СтТовУчНалВсего="{1}">
                 <СумНалВсего>
@@ -57,6 +83,48 @@ class DiadokBuilder:
             res += self.row.format(number, *row.get_tuple_with_data_for_row_diadok_row[1:])
             number += 1
             res += self.row_remuneration.format(number, *row.get_tuple_with_data_for_row_diadok_row_remuneration[1:])
+        res += self.end_row.format(*end_data)
+        return res
+
+    def create_rows_for_group_cd(self, datas, end_data):
+        """
+        Формирование строк Диадок для группового закрывающего документа.
+        Использует те же данные, что и счет-фактура для групп (RowForInvoice.get_tuple_with_data_for_group_cd*).
+        """
+        res = ""
+        number = 0
+        for row in datas:
+            number += 1
+            t = row.get_tuple_with_data_for_group_cd
+            # Наименование как в УПД
+            name_hoops = row.text_for_hoops_gcd.replace('"', self.quot)
+            res += self.row_gcd.format(
+                number,
+                name_hoops,
+                t[2],  # ОКЕИ
+                t[3],  # Количество (1)
+                t[4],  # Цена (без НДС, т.к. объем = 1)
+                t[5],  # СтТовБезНДС
+                t[6],  # СтТовУчНал
+                t[7],  # СумНал
+                t[8],  # НаимЕдИзм
+                t[9],  # НалСт
+            )
+            number += 1
+            tr = row.get_tuple_with_data_for_group_cd_remuneration
+            name_rem = row.text_for_remuneration_gcd.replace('"', self.quot)
+            res += self.row_remuneration_gcd.format(
+                number,
+                name_rem,
+                tr[2],  # ОКЕИ
+                tr[3],  # Количество (1)
+                tr[4],  # Цена (без НДС)
+                tr[5],  # СтТовБезНДС
+                tr[6],  # СтТовУчНал
+                tr[7],  # СумНал
+                tr[8],  # НаимЕдИзм
+                tr[9],  # НалСт
+            )
         res += self.end_row.format(*end_data)
         return res
 
@@ -95,6 +163,54 @@ class DiadokBuilder:
         )
         self.document = self.document.replace("{PARAGRAPHS}", str(f"1-{len(rows)}"))
         self.document = self.document.replace("{PRODUCT_INFOS}", rows)
+        self.document = self.document.replace("{TIME}", datetime.now().time().strftime("%H.%M.%S"))
+        self.document = self.document.replace("{DATE_OFFER}", date_offer)
+        self.document = self.document.replace("{DATE_OFFER}", date_offer)
+        self.document = self.document.replace("{ACCEPTED_DATE}", accepted_date)
+        self.document = self.document.replace("{CLOSING_DATE}", date.date().strftime("%d.%m.%Y"))
+
+        self.storage.put(path_return, self.document)
+
+        return path_return, total_price
+
+    def create_document_for_group_cd(
+        self,
+        rows,
+        total_price,
+        number,
+        date,
+        inn,
+        kpp,
+        hotel_name,
+        legal_address,
+        date_offer,
+        accepted_date,
+        total_tax,
+    ):
+        """
+        Создание Диадок XML для группового закрывающего документа по новому образцу (как в счет-фактуре группы).
+        """
+        file_id = str(uuid.uuid4()) + str(uuid.uuid4())
+        path_return = f"closing_document/diadok_xml/{date.year}/{date.month}/{number}/{file_id}.xml"
+
+        self.document = self.document.replace("{FILE_ID}", file_id)
+        self.document = self.document.replace("{NUMBER}", str(number))
+        self.document = self.document.replace("{DATE}", date.date().strftime("%d.%m.%Y"))
+        self.document = self.document.replace("{INN}", inn)
+        self.document = self.document.replace("{KPP}", kpp)
+        self.document = self.document.replace("{HOTEL_NAME}", hotel_name.replace('"', self.quot))
+        self.document = self.document.replace("{LEGAL_ADDRESS}", legal_address)
+
+        rows_xml = self.create_rows_for_group_cd(
+            rows,
+            (
+                RowForInvoice.get_str_with_format(total_price - total_tax),
+                RowForInvoice.get_str_with_format(total_price),
+                RowForInvoice.get_str_with_format(total_tax),
+            ),
+        )
+        self.document = self.document.replace("{PARAGRAPHS}", str(f"1-{len(rows_xml)}"))
+        self.document = self.document.replace("{PRODUCT_INFOS}", rows_xml)
         self.document = self.document.replace("{TIME}", datetime.now().time().strftime("%H.%M.%S"))
         self.document = self.document.replace("{DATE_OFFER}", date_offer)
         self.document = self.document.replace("{DATE_OFFER}", date_offer)
