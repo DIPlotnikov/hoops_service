@@ -70,19 +70,31 @@ class BillCreator(object):
             self.closing_date = closing_date
         self._total_rub = 1.00
         self._goods_html_ = """
-              <tr>
-        <td style="width:13mm; text-align: center;">{0}</td>
-
-        <td text-align: center;>{1}</td>
-        <td style="width:20mm; text-align: center;">{3}</td>
-
-        <td style="width:27mm; text-align: center; ">{4}</td>
-        <td style="width:27mm; text-align: center; ">{2}</td>
+              <tr class=\"no-break-row\">
+        <td style=\"width:13mm; text-align: center;\"><div class=\"cell-content\">{0}</div></td>
+        <td style=\"text-align: center;\"><div class=\"cell-content\">{1}</div></td>
+        <td style=\"width:20mm; text-align: center;\"><div class=\"cell-content\">{3}</div></td>
+        <td style=\"width:27mm; text-align: center;\"><div class=\"cell-content\">{4}</div></td>
+        <td style=\"width:27mm; text-align: center;\"><div class=\"cell-content\">{2}</div></td>
     </tr>"""
 
     def __create_pdf(self):
         """Конвертирует текущий HTML-файл счета в PDF рядом с ним и обновляет `_file_path`."""
-        pdfkit.from_file(self._file_path, os.path.splitext(self._file_path)[0] + ".pdf")
+        pdfkit.from_file(
+            self._file_path,
+            os.path.splitext(self._file_path)[0] + ".pdf",
+            options={
+                "page-size": "Letter",
+                "margin-top": "0.2in",
+                "margin-right": "0.75in",
+                "margin-bottom": "0.2in",
+                "margin-left": "0.75in",
+                "encoding": "UTF-8",
+                "print-media-type": None,
+                "enable-local-file-access": None,
+                "no-stop-slow-scripts": None,
+            },
+        )
         self._file_path = os.path.splitext(self._file_path)[0] + ".pdf"
 
     def createBill(

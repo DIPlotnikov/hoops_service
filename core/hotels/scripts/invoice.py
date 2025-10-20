@@ -670,20 +670,19 @@ def invoice_creator_for_group_cd(
 
     formatted_period = format_period_ru(date_start, date_stop)
 
-    for _ in range(5):
-        for executer_state in executor_states:
-            number_row += 1
-            rows_for_all_task += rows_for_1_task.format(
-                number_row,
-                *executer_state.get_tuple_with_data_for_group_cd[1:],
-                FORMATED_DATE=formatted_period,
-            )
-            number_row += 1
-            rows_for_all_task += rows_for_remenuration.format(
-                number_row,
-                *executer_state.get_tuple_with_data_for_group_cd_remuneration[1:],
-                FORMATED_DATE=formatted_period,
-            )
+    for executer_state in executor_states:
+        number_row += 1
+        rows_for_all_task += rows_for_1_task.format(
+            number_row,
+            *executer_state.get_tuple_with_data_for_group_cd[1:],
+            FORMATED_DATE=formatted_period,
+        )
+        number_row += 1
+        rows_for_all_task += rows_for_remenuration.format(
+            number_row,
+            *executer_state.get_tuple_with_data_for_group_cd_remuneration[1:],
+            FORMATED_DATE=formatted_period,
+        )
 
     data = data.replace("{CODE_UPD}", str(number))
     data = data.replace("{DATE}", closing_date.date().strftime("%d.%m.%y"))

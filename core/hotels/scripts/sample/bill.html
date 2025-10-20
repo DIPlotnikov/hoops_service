@@ -1,4 +1,44 @@
-﻿<div class="main">
+﻿<style>
+/* Force rows to stay together using multiple approaches */
+table { 
+    border-collapse: collapse;
+}
+thead { 
+    display: table-header-group; 
+}
+tbody { 
+    display: table-row-group; 
+}
+
+/* Critical: each cell div must not break */
+.cell-content {
+    display: block;
+    page-break-inside: avoid;
+    -webkit-region-break-inside: avoid;
+}
+
+/* Row must not break - use class for specificity */
+.no-break-row {
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+/* Ensure cells don't break */
+.no-break-row td {
+    page-break-inside: avoid;
+}
+
+/* Print-specific rules */
+@media print {
+    .no-break-row {
+        page-break-inside: avoid !important;
+    }
+    .cell-content {
+        page-break-inside: avoid !important;
+    }
+}
+</style>
+<div class="main">
 <table width="100%" style="font-family: Arial;">
     <tr >
         <td style="width: 68%; padding: 20px 0;">
@@ -101,16 +141,14 @@
 <table border="2" width="100%" cellpadding="2" cellspacing="2" style="border-collapse: collapse; width: 100%; font-family: Arial;">
     <thead>
     <tr>
-        <th style="width:13mm; ">№</th>
-       
+        <th style="width:13mm;">№</th>
         <th>Товары (работы, услуги)</th>
-        <th style="width:20mm; ">Кол-во</th>
-
-        <th style="width:27mm;  ">Цена</th>
-        <th style="width:27mm;  ">Сумма</th>
+        <th style="width:20mm;">Кол-во</th>
+        <th style="width:27mm;">Цена</th>
+        <th style="width:27mm;">Сумма</th>
     </tr>
     </thead>
-    <tbody >
+    <tbody>
     {GOODS_TR}
     </tbody>
 </table>
