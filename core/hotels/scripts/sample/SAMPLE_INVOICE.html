@@ -140,8 +140,21 @@ h3 {
         }
 
         table {
-    border-collapse: collapse;
+    border-collapse: separate; /* avoid collapse to improve page-break handling */
+    border-spacing: 0;
 }
+
+        /* Prevent page breaks inside table rows and, robustly, inside cell blocks */
+        tr {
+            page-break-inside: avoid;
+        }
+        td > div, th > div {
+            display: block;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            -webkit-region-break-inside: avoid;
+        }
+        td, th { overflow: visible; }
 
 
 </style>

@@ -478,42 +478,42 @@ def invoice_creator(
 
     rows_for_1_task = """
     <tr>
-      <td style="border-right:2px solid #000"> </td>
-      <td>{0}</td>
-      <td>Стоимость Услуг HOOPS Service по заявкам № {1}</td>
-      <td> </td>
-      <td>{2}</td>
-      <td>{8}</td>
-      <td>{3}</td>
-      <td>{4}</td>
-      <td>{5}</td>
-      <td></td>
-      <td>{9}</td>
-      <td>{7}</td>
-      <td>{6:.2f}</td>
-      <td> </td>
-      <td> </td>
-      <td> </td>
+      <td style=\"border-right:2px solid #000\"><div> </div></td>
+      <td><div>{0}</div></td>
+      <td><div>Стоимость Услуг HOOPS Service по заявкам № {1}</div></td>
+      <td><div> </div></td>
+      <td><div>{2}</div></td>
+      <td><div>{8}</div></td>
+      <td><div>{3}</div></td>
+      <td><div>{4}</div></td>
+      <td><div>{5}</div></td>
+      <td><div></div></td>
+      <td><div>{9}</div></td>
+      <td><div>{7}</div></td>
+      <td><div>{6:.2f}</div></td>
+      <td><div> </div></td>
+      <td><div> </div></td>
+      <td><div> </div></td>
     </tr>
     """
     rows_for_remenuration = """
     <tr>
-      <td style="border-right:2px solid #000"> </td>
-      <td>{0}</td>
-      <td>Вознаграждение за исполнение поручения по заявкам № {1}</td>
-      <td> </td>
-      <td>{2}</td>
-      <td>{8}</td>
-      <td>{3}</td>
-      <td>{4}</td>
-      <td>{5}</td>
-      <td></td>
-      <td>{9}</td>
-      <td>{7}</td>
-      <td>{6:.2f}</td>
-      <td> </td>
-      <td> </td>
-      <td> </td>
+      <td style=\"border-right:2px solid #000\"><div> </div></td>
+      <td><div>{0}</div></td>
+      <td><div>Вознаграждение за исполнение поручения по заявкам № {1}</div></td>
+      <td><div> </div></td>
+      <td><div>{2}</div></td>
+      <td><div>{8}</div></td>
+      <td><div>{3}</div></td>
+      <td><div>{4}</div></td>
+      <td><div>{5}</div></td>
+      <td><div></div></td>
+      <td><div>{9}</div></td>
+      <td><div>{7}</div></td>
+      <td><div>{6:.2f}</div></td>
+      <td><div> </div></td>
+      <td><div> </div></td>
+      <td><div> </div></td>
     </tr>
     """
 
@@ -571,6 +571,8 @@ def invoice_creator(
             "margin-right": "0.75in",
             "margin-bottom": "0.2in",
             "margin-left": "0.75in",
+            "encoding": "UTF-8",
+            "print-media-type": None,
         },
     )
 
@@ -612,42 +614,42 @@ def invoice_creator_for_group_cd(
 
     rows_for_1_task = """
     <tr>
-      <td style="border-right:2px solid #000"> </td>
-      <td>{0}</td>
-      <td>{1} Оплата услуг HOOPS Service за период {FORMATED_DATE}</td>
-      <td> </td>
-      <td>{2}</td>
-      <td>{8}</td>
-      <td>{3}</td>
-      <td>{4}</td>
-      <td>{5}</td>
-      <td></td>
-      <td>{9}</td>
-      <td>{7}</td>
-      <td>{6:.2f}</td>
-      <td> </td>
-      <td> </td>
-      <td> </td>
+      <td style=\"border-right:2px solid #000\"><div> </div></td>
+      <td><div>{0}</div></td>
+      <td><div>{1} Оплата услуг HOOPS Service за период {FORMATED_DATE}</div></td>
+      <td><div> </div></td>
+      <td><div>{2}</div></td>
+      <td><div>{8}</div></td>
+      <td><div>{3}</div></td>
+      <td><div>{4}</div></td>
+      <td><div>{5}</div></td>
+      <td><div></div></td>
+      <td><div>{9}</div></td>
+      <td><div>{7}</div></td>
+      <td><div>{6:.2f}</div></td>
+      <td><div> </div></td>
+      <td><div> </div></td>
+      <td><div> </div></td>
     </tr>
     """
     rows_for_remenuration = """
     <tr>
-      <td style="border-right:2px solid #000"> </td>
-      <td>{0}</td>
-      <td>{1} Вознаграждение за исполнение поручения за период {FORMATED_DATE}</td>
-      <td> </td>
-      <td>{2}</td>
-      <td>{8}</td>
-      <td>{3}</td>
-      <td>{4}</td>
-      <td>{5}</td>
-      <td></td>
-      <td>{9}</td>
-      <td>{7}</td>
-      <td>{6:.2f}</td>
-      <td> </td>
-      <td> </td>
-      <td> </td>
+      <td style=\"border-right:2px solid #000\"><div> </div></td>
+      <td><div>{0}</div></td>
+      <td><div>{1} Вознаграждение за исполнение поручения за период {FORMATED_DATE}</div></td>
+      <td><div> </div></td>
+      <td><div>{2}</div></td>
+      <td><div>{8}</div></td>
+      <td><div>{3}</div></td>
+      <td><div>{4}</div></td>
+      <td><div>{5}</div></td>
+      <td><div></div></td>
+      <td><div>{9}</div></td>
+      <td><div>{7}</div></td>
+      <td><div>{6:.2f}</div></td>
+      <td><div> </div></td>
+      <td><div> </div></td>
+      <td><div> </div></td>
     </tr>
     """
 
@@ -668,19 +670,20 @@ def invoice_creator_for_group_cd(
 
     formatted_period = format_period_ru(date_start, date_stop)
 
-    for executer_state in executor_states:
-        number_row += 1
-        rows_for_all_task += rows_for_1_task.format(
-            number_row,
-            *executer_state.get_tuple_with_data_for_group_cd[1:],
-            FORMATED_DATE=formatted_period,
-        )
-        number_row += 1
-        rows_for_all_task += rows_for_remenuration.format(
-            number_row,
-            *executer_state.get_tuple_with_data_for_group_cd_remuneration[1:],
-            FORMATED_DATE=formatted_period,
-        )
+    for _ in range(5):
+        for executer_state in executor_states:
+            number_row += 1
+            rows_for_all_task += rows_for_1_task.format(
+                number_row,
+                *executer_state.get_tuple_with_data_for_group_cd[1:],
+                FORMATED_DATE=formatted_period,
+            )
+            number_row += 1
+            rows_for_all_task += rows_for_remenuration.format(
+                number_row,
+                *executer_state.get_tuple_with_data_for_group_cd_remuneration[1:],
+                FORMATED_DATE=formatted_period,
+            )
 
     data = data.replace("{CODE_UPD}", str(number))
     data = data.replace("{DATE}", closing_date.date().strftime("%d.%m.%y"))
@@ -711,6 +714,8 @@ def invoice_creator_for_group_cd(
             "margin-right": "0.75in",
             "margin-bottom": "0.2in",
             "margin-left": "0.75in",
+            "encoding": "UTF-8",
+            "print-media-type": None,
         },
     )
 
