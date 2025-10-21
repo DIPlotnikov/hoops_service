@@ -4,6 +4,40 @@
     <meta charset="utf-8">
     <meta name="pdfkit-page-size" content="A4"/>
     <title>Untitled Document</title>
+    <style>
+    /* Prevent page breaks within table rows */
+    table { 
+        border-collapse: collapse;
+    }
+    
+    /* Critical: each cell div must not break */
+    .cell-content {
+        display: block;
+        page-break-inside: avoid;
+        -webkit-region-break-inside: avoid;
+    }
+    
+    /* Row must not break */
+    .no-break-row {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    
+    /* Ensure cells don't break */
+    .no-break-row td {
+        page-break-inside: avoid;
+    }
+    
+    /* Print-specific rules */
+    @media print {
+        .no-break-row {
+            page-break-inside: avoid !important;
+        }
+        .cell-content {
+            page-break-inside: avoid !important;
+        }
+    }
+    </style>
 </head>
 
 

@@ -35,35 +35,35 @@ def act_creator(
     logger.info("Создание счет фактуры html")
     file = "SAMPLE_ACT_PRIEMKA.html"
     rows_for_1_task = """
-    <tr>
-        <td style="text-align: center; border: 1px solid grey;">{0}</td>
-        <td style="text-align: left; border: 1px solid grey;">Стоимость Услуг HOOPS Service по заявкам №{1}</td>
-        <td style="text-align: left; border: 1px solid grey;">{10}</td>
-        <td style="text-align: right; border: 1px solid grey;">{2}</td>
-        <td style="text-align: right; border: 1px solid grey;">{3}</td>
-        <td style="text-align: right; border: 1px solid grey;">{4}</td>
-        <td style="text-align: right; border: 1px solid grey;">{5}</td>
-        <td style="text-align: right; border: 1px solid grey;">{6}</td>
+    <tr class=\"no-break-row\">
+        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{0}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">Стоимость Услуг HOOPS Service по заявкам №{1}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{3}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{4}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{5}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{6}</div></td>
     </tr>
-    <tr>
-        <td style="text-align: center; border: 1px solid grey;">{11}</td>
-        <td style="text-align: left; border: 1px solid grey;">Вознаграждение за исполнение поручения по заявкам №{1}</td>
-        <td style="text-align: left; border: 1px solid grey;">{10}</td>
-        <td style="text-align: right; border: 1px solid grey;">{2}</td>
-        <td style="text-align: right; border: 1px solid grey;">{12}</td>
-        <td style="text-align: right; border: 1px solid grey;">{13}</td>
-        <td style="text-align: right; border: 1px solid grey;">{14}</td>
-        <td style="text-align: right; border: 1px solid grey;">{15}</td>
+    <tr class=\"no-break-row\">
+        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{11}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">Вознаграждение за исполнение поручения по заявкам №{1}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{12}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{13}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{14}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{15}</div></td>
     </tr>
-    <tr>
-        <td style="text-align: center; border: 1px solid grey;">{7}</td>
-        <td style="text-align: left; border: 1px solid grey;">Оплата HOOPS для выплаты исполнителям согласно раздела 4 договора оферты ред. OFFER_DATE, акцепт ACCEPTED_AT за оказанные услуги по заявкам  №{1}</td>
-        <td style="text-align: left; border: 1px solid grey;">{10}</td>
-        <td style="text-align: right; border: 1px solid grey;">{2}</td>
-        <td style="text-align: right; border: 1px solid grey;">{8}</td>
-        <td style="text-align: right; border: 1px solid grey;">{9}</td>
-        <td style="text-align: right; border: 1px solid grey;">Без НДС</td>
-        <td style="text-align: right; border: 1px solid grey;">{9}</td>
+    <tr class=\"no-break-row\">
+        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{7}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">Оплата HOOPS для выплаты исполнителям согласно раздела 4 договора оферты ред. OFFER_DATE, акцепт ACCEPTED_AT за оказанные услуги по заявкам  №{1}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{8}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{9}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">Без НДС</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{9}</div></td>
     </tr>
     """
 
@@ -129,11 +129,16 @@ def act_creator(
         data,
         os.path.splitext(path_out)[0] + ".pdf",
         options={
-            "page-size": "Letter",
-            "margin-top": "0.2in",
-            "margin-right": "0.75in",
-            "margin-bottom": "0.2in",
-            "margin-left": "0.75in",
+            "page-size": "A4",
+            "orientation": "Portrait",
+            "margin-top": "20mm",
+            "margin-right": "20mm",
+            "margin-bottom": "20mm",
+            "margin-left": "20mm",
+            "encoding": "UTF-8",
+            "print-media-type": None,
+            "enable-local-file-access": None,
+            "no-stop-slow-scripts": None,
         },
     )
 
@@ -166,35 +171,35 @@ def act_creator_for_group_cd(
     logger.info("Создание счет фактуры html")
     file = "SAMPLE_ACT_PRIEMKA.html"
     rows_for_1_task = """
-    <tr>
-        <td style="text-align: center; border: 1px solid grey;">{0}</td>
-        <td style="text-align: left; border: 1px solid grey;">{1} Оплата услуг HOOPS Service за период {FORMATED_DATE}</td>
-        <td style="text-align: left; border: 1px solid grey;">{10}</td>
-        <td style="text-align: right; border: 1px solid grey;">{2}</td>
-        <td style="text-align: right; border: 1px solid grey;">{3}</td>
-        <td style="text-align: right; border: 1px solid grey;">{4}</td>
-        <td style="text-align: right; border: 1px solid grey;">{5}</td>
-        <td style="text-align: right; border: 1px solid grey;">{6}</td>
+    <tr class=\"no-break-row\">
+        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{0}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{1} Оплата услуг HOOPS Service за период {FORMATED_DATE}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{3}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{4}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{5}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{6}</div></td>
     </tr>
-    <tr>
-        <td style="text-align: center; border: 1px solid grey;">{11}</td>
-        <td style="text-align: left; border: 1px solid grey;">{1} Вознаграждение за исполнение поручения за период {FORMATED_DATE}</td>
-        <td style="text-align: left; border: 1px solid grey;">{10}</td>
-        <td style="text-align: right; border: 1px solid grey;">{2}</td>
-        <td style="text-align: right; border: 1px solid grey;">{12}</td>
-        <td style="text-align: right; border: 1px solid grey;">{13}</td>
-        <td style="text-align: right; border: 1px solid grey;">{14}</td>
-        <td style="text-align: right; border: 1px solid grey;">{15}</td>
+    <tr class=\"no-break-row\">
+        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{11}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{1} Вознаграждение за исполнение поручения за период {FORMATED_DATE}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{12}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{13}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{14}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{15}</div></td>
     </tr>
-    <tr>
-        <td style="text-align: center; border: 1px solid grey;">{7}</td>
-        <td style="text-align: left; border: 1px solid grey;">{1} Оплата HOOPS для выплаты исполнителям за период {FORMATED_DATE}</td>
-        <td style="text-align: left; border: 1px solid grey;">{10}</td>
-        <td style="text-align: right; border: 1px solid grey;">{2}</td>
-        <td style="text-align: right; border: 1px solid grey;">{8}</td>
-        <td style="text-align: right; border: 1px solid grey;">{9}</td>
-        <td style="text-align: right; border: 1px solid grey;">Без НДС</td>
-        <td style="text-align: right; border: 1px solid grey;">{9}</td>
+    <tr class=\"no-break-row\">
+        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{7}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{1} Оплата HOOPS для выплаты исполнителям за период {FORMATED_DATE}</div></td>
+        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{8}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{9}</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">Без НДС</div></td>
+        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{9}</div></td>
     </tr>
     """
 
@@ -262,11 +267,16 @@ def act_creator_for_group_cd(
         data,
         os.path.splitext(path_out)[0] + ".pdf",
         options={
-            "page-size": "Letter",
-            "margin-top": "0.2in",
-            "margin-right": "0.75in",
-            "margin-bottom": "0.2in",
-            "margin-left": "0.75in",
+            "page-size": "A4",
+            "orientation": "Portrait",
+            "margin-top": "20mm",
+            "margin-right": "20mm",
+            "margin-bottom": "20mm",
+            "margin-left": "20mm",
+            "encoding": "UTF-8",
+            "print-media-type": None,
+            "enable-local-file-access": None,
+            "no-stop-slow-scripts": None,
         },
     )
 
