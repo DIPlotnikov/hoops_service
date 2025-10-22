@@ -78,12 +78,25 @@ class BillCreator(object):
         <td style=\"width:27mm; text-align: center;\"><div class=\"cell-content\">{2}</div></td>
     </tr>"""
 
-    def __create_pdf(self):
+    def __create_pdf(self, for_group=False):
         """Конвертирует текущий HTML-файл счета в PDF рядом с ним и обновляет `_file_path`."""
-        pdfkit.from_file(
-            self._file_path,
-            os.path.splitext(self._file_path)[0] + ".pdf",
-            options={
+        if for_group:
+            # Формат для CreateGroupedClosingDocuments: A4 книжная, отступы 2 см
+            options = {
+                "page-size": "A4",
+                "orientation": "Portrait",
+                "margin-top": "2cm",
+                "margin-right": "2cm",
+                "margin-bottom": "2cm",
+                "margin-left": "2cm",
+                "encoding": "UTF-8",
+                "print-media-type": None,
+                "enable-local-file-access": None,
+                "no-stop-slow-scripts": None,
+            }
+        else:
+            # Формат для CreateClosingDocument: Letter, старые отступы
+            options = {
                 "page-size": "Letter",
                 "margin-top": "0.2in",
                 "margin-right": "0.75in",
@@ -93,7 +106,12 @@ class BillCreator(object):
                 "print-media-type": None,
                 "enable-local-file-access": None,
                 "no-stop-slow-scripts": None,
-            },
+            }
+        
+        pdfkit.from_file(
+            self._file_path,
+            os.path.splitext(self._file_path)[0] + ".pdf",
+            options=options,
         )
         self._file_path = os.path.splitext(self._file_path)[0] + ".pdf"
 
@@ -209,6 +227,7 @@ class BillCreator(object):
           `get_tuple_with_data_for_row_bill_hoops_remuneration`,
           `get_tuple_with_data_for_row_bill_executer`.
         - join_documents: если True — формируется один объединенный счет (только HOOPS путь возвращается).
+        - for_group: если True — использует формат A4 для CreateGroupedClosingDocuments.
         """
         # Примечание: параметры `hoops_cost` и `executer_cost` не используются внутри метода,
         # оставлены для обратной совместимости вызовов.
@@ -227,28 +246,28 @@ class BillCreator(object):
         if join_documents:
             for_hoops.extend(for_executer)
             self.createBill(verification=False, offer_date=offer_date, goods=for_hoops, is_hoops=True, nds=total_tax)
-            file_path_hoops = self.getUrl(pdf=True)
+            file_path_hoops = self.getUrl(pdf=True, for_group=for_group)
             file_path_hotel = None
         else:
             self.createBill(verification=False, offer_date=offer_date, goods=for_hoops, is_hoops=True, nds=total_tax)
-            file_path_hoops = self.getUrl(pdf=True)
+            file_path_hoops = self.getUrl(pdf=True, for_group=for_group)
 
             self.createBill(verification=False, offer_date=offer_date, goods=for_executer, postfix_name="/1")
-            file_path_hotel = self.getUrl(pdf=True)
+            file_path_hotel = self.getUrl(pdf=True, for_group=for_group)
 
         return file_path_hoops, file_path_hotel
 
-    def sendBill(self, pdf=False, url=""):
+    def sendBill(self, pdf=False, url="", for_group=False):
         """Отправляет счет по email; опционально сначала генерирует PDF."""
         if pdf:
-            self.__create_pdf()
+            self.__create_pdf(for_group=for_group)
         send_bill.delay(email=self._email, file=self._file_path, url=url)
 
-    def getUrl(self, pdf=False):
+    def getUrl(self, pdf=False, for_group=False):
         """Возвращает относительный путь внутри бакета к текущему файлу; при `pdf=True` — сначала создает PDF."""
         logger.info(self._file_path.split(bucket)[1])
         if pdf:
-            self.__create_pdf()
+            self.__create_pdf(for_group=for_group)
         server = SH.minioDocuments()
         url = server.getUrlForFile(self._file_path, response_headers={})
         url = self._file_path.split(bucket)[1]
