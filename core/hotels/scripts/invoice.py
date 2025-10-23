@@ -23,53 +23,89 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RowForInvoice:
     """
-    Данные для одной строки акта
+    Данные для одной строки акта сдачи-приемки (договор-оферта).
+    
+    Класс содержит все необходимые данные для формирования трех типов строк в акте:
+    1. "Оплата услуг HOOPS Service" - основная услуга с НДС 20%
+    2. "Вознаграждение за исполнение поручения" - вознаграждение с НДС 20%
+    3. "Услуги Исполнителей" - услуги исполнителей без НДС
+    
+    Столбцы акта сдачи-приемки:
+    1. Номер по порядку
+    2. Наименование работы(услуг) 
+    3. Единица измерения
+    4. Кол-во
+    5. Цена (тариф) за единицу
+    6. Стоимость работ (услуг) всего без налога
+    7. Сумма налога
+    8. Сумма с учетом налога
     """
-    hotel_name: str
-    number: int
-    tasks: str
-    # объем работы
-    volume: float
-    volume_str: str
+    # Базовые данные
+    hotel_name: str                    # Название гостиницы
+    number: int                        # Номер строки (столбец 1)
+    tasks: str                         # Номера заявок для наименования (столбец 2)
+    
+    # Объем работ
+    volume: float                      # Количество часов (столбец 4)
+    volume_str: str                    # Форматированное количество
 
-    # сумма для hoops
-    hoops_cost: float
-    # сумма для исполнителей
-    executer_cost: float
+    # Суммы для HOOPS (основная услуга)
+    hoops_cost: float                  # Общая сумма HOOPS (столбец 8 для основной строки)
+    hoops_cost_without_remuneration: float  # Сумма без вознаграждения (столбец 6 для основной строки)
+    
+    # Суммы для исполнителей (услуги исполнителей - без НДС)
+    executer_cost: float               # Сумма услуг исполнителей (столбец 6 для строки исполнителей)
 
-    # коды океи
-    okei_code: str
-    okei_name: str
+    # ОКЕИ коды (столбец 3)
+    okei_code: str                     # Код единицы измерения
+    okei_name: str                     # Название единицы измерения
 
-    # поля для платежек
-    rent_str: str
-    hoops_without_tax_str: str
-    tax_str: str
-    rent_for_executer: str
-    nds: str
-    remuneration: str
-    remuneration_without_tax_str: str
-    hoops_cost_without_remuneration: str
-    remuneration_tax_str: str
-    remuneration_rent_str: str
-    hoops_cost_without_remuneration_without_tax_str: str
-    hoops_cost_without_remuneration_tax_str: str
-    hoops_cost_without_remuneration_rent_str: str
+    # Цены за единицу (столбец 5)
+    rent_str: str                      # Цена основной услуги за час
+    rent_for_executer: str             # Цена услуг исполнителей за час
+    
+    # НДС и налоги (столбец 7)
+    hoops_without_tax_str: str         # HOOPS без НДС (столбец 6)
+    tax_str: str                       # НДС основной услуги (столбец 7)
+    nds: str                          # Ставка НДС
+    
+    # Данные вознаграждения
+    remuneration: float                # Сумма вознаграждения (столбец 8 для строки вознаграждения)
+    remuneration_without_tax_str: str  # Вознаграждение без НДС (столбец 6 для строки вознаграждения)
+    remuneration_tax_str: str         # НДС вознаграждения (столбец 7 для строки вознаграждения)
+    remuneration_rent_str: str        # Цена вознаграждения за единицу (столбец 5 для строки вознаграждения)
+    
+    # Дополнительные расчеты для основной услуги
+    hoops_cost_without_remuneration_without_tax_str: str  # Основная услуга без НДС (столбец 6)
+    hoops_cost_without_remuneration_tax_str: str         # НДС основной услуги (столбец 7)
+    hoops_cost_without_remuneration_rent_str: str        # Цена основной услуги за единицу (столбец 5)
 
     # Дополнительные поля (опциональны для совместимости с одиночным режимом)
-    date_start: Optional[str] = ""
-    date_end: Optional[str] = ""
+    date_start: Optional[str] = ""     # Дата начала периода
+    date_end: Optional[str] = ""       # Дата окончания периода
 
     @property
     def text_for_hoops(self):
+        """
+        Текст для основной строки акта: "Оплата услуг HOOPS Service"
+        Используется в столбце 2 (Наименование работы(услуг))
+        """
         return f"Стоимость Услуг HOOPS Service по заявкам {self.tasks}"
 
     @property
     def text_for_remuneration(self):
+        """
+        Текст для строки вознаграждения: "Вознаграждение за исполнение поручения"
+        Используется в столбце 2 (Наименование работы(услуг))
+        """
         return f"Вознаграждение за исполнение поручения по заявкам {self.tasks}"
 
     @property
     def text_for_executer(self):
+        """
+        Текст для строки услуг исполнителей: "Услуги Исполнителей"
+        Используется в столбце 2 (Наименование работы(услуг))
+        """
         return (
             "Оплата HOOPS для выплаты исполнителям согласно раздела 4 договора оферты от {DATE_OFFER} за оказанные услуги по заявкам  "
             + self.tasks
@@ -258,7 +294,15 @@ class RowForInvoice:
     @property
     def get_tuple_with_data_for_row_act_first_row(self) -> tuple:
         """
-        Получение кортежа данных для первой строки акта
+        Данные для основной строки акта: "Оплата услуг HOOPS Service"
+        
+        Возвращает кортеж для заполнения строки акта:
+        - tasks: номера заявок (столбец 2)
+        - volume_str: количество часов (столбец 4) 
+        - hoops_cost_without_remuneration_rent_str: цена за час (столбец 5)
+        - hoops_cost_without_remuneration_without_tax_str: сумма без НДС (столбец 6)
+        - hoops_cost_without_remuneration_tax_str: НДС (столбец 7)
+        - hoops_cost_without_remuneration: сумма с НДС (столбец 8)
         """
         return (
             self.tasks,
@@ -272,7 +316,13 @@ class RowForInvoice:
     @property
     def get_tuple_with_data_for_row_act_remenuration(self) -> tuple:
         """
-        Получение кортежа данных для первой строки акта
+        Данные для строки вознаграждения: "Вознаграждение за исполнение поручения"
+        
+        Возвращает кортеж для заполнения строки акта:
+        - remuneration_rent_str: цена за час (столбец 5)
+        - remuneration_without_tax_str: сумма без НДС (столбец 6)
+        - remuneration_tax_str: НДС (столбец 7)
+        - remuneration: сумма с НДС (столбец 8)
         """
         return (
             self.remuneration_rent_str,
@@ -284,14 +334,28 @@ class RowForInvoice:
     @property
     def get_tuple_with_data_for_row_act_second_row(self) -> tuple:
         """
-        Получение кортежа данных для первой строки акта
+        Данные для строки услуг исполнителей: "Услуги Исполнителей"
+        
+        Возвращает кортеж для заполнения строки акта:
+        - rent_for_executer: цена за час (столбец 5)
+        - executer_cost: сумма без НДС (столбец 6) - услуги исполнителей без НДС
+        - okei_name: единица измерения (столбец 3)
         """
         return self.rent_for_executer, "{:.2f}".format(self.executer_cost), self.okei_name
 
     @property
     def get_tuple_with_data_for_row_act_first_row_gcd(self) -> tuple:
         """
-        Получение кортежа данных для первой строки акта
+        Данные для основной строки группового акта: "Оплата услуг HOOPS Service"
+        
+        Для групповых документов количество всегда = 1 (шт)
+        Возвращает кортеж для заполнения строки акта:
+        - hotel_name: название гостиницы (столбец 2)
+        - volume: количество = 1 (столбец 4)
+        - hoops_cost_without_remuneration_without_tax_str: сумма без НДС (столбец 6)
+        - hoops_cost_without_remuneration_without_tax_str: цена за единицу (столбец 5)
+        - hoops_cost_without_remuneration_tax_str: НДС (столбец 7)
+        - hoops_cost_without_remuneration: сумма с НДС (столбец 8)
         """
         volume = '1'
         return (
@@ -306,7 +370,12 @@ class RowForInvoice:
     @property
     def get_tuple_with_data_for_row_act_second_row_gcd(self) -> tuple:
         """
-        Получение кортежа данных для первой строки акта
+        Данные для строки услуг исполнителей в групповом акте: "Услуги Исполнителей"
+        
+        Возвращает кортеж для заполнения строки акта:
+        - executer_cost: сумма без НДС (столбец 6) - услуги исполнителей без НДС
+        - executer_cost: цена за единицу (столбец 5) - для групповых документов цена = сумме
+        - okei_name: единица измерения = "шт" (столбец 3)
         """
         okei_name = 'шт'
         return (
@@ -318,7 +387,13 @@ class RowForInvoice:
     @property
     def get_tuple_with_data_for_row_act_remenuration_gcd(self) -> tuple:
         """
-        Получение кортежа данных для первой строки акта
+        Данные для строки вознаграждения в групповом акте: "Вознаграждение за исполнение поручения"
+        
+        Возвращает кортеж для заполнения строки акта:
+        - remuneration_without_tax_str: сумма без НДС (столбец 6)
+        - remuneration_without_tax_str: цена за единицу (столбец 5) - для групповых документов цена = сумме без НДС
+        - remuneration_tax_str: НДС (столбец 7)
+        - remuneration: сумма с НДС (столбец 8)
         """
         return (
             self.remuneration_without_tax_str,
@@ -339,37 +414,69 @@ def format_executers_states_to_invoice_format(
         date_end=None,
 ) -> tuple:
     """
-    Получение списка дата классов с данными для счет-фактуры
-    @param remuneration_percent: процент вознаграждения
-    @param nds: ставка НДС
-    @param executor_states: Статусы исполнителей
-    @return: список RowForInvoice
+    Формирование данных для акта сдачи-приемки (договор-оферта) из статусов исполнителей.
+    
+    Функция группирует статусы исполнителей по профессиям и ставкам, рассчитывает суммы
+    для трех типов строк в акте:
+    1. "Оплата услуг HOOPS Service" - основная услуга с НДС 20%
+    2. "Вознаграждение за исполнение поручения" - вознаграждение с НДС 20% 
+    3. "Услуги Исполнителей" - услуги исполнителей без НДС
+    
+    Столбцы акта сдачи-приемки:
+    - Номер по порядку (1)
+    - Наименование работы(услуг) (2) 
+    - Единица измерения (3)
+    - Кол-во (4)
+    - Цена (тариф) за единицу (5)
+    - Стоимость работ (услуг) всего без налога (6)
+    - Сумма налога (7)
+    - Сумма с учетом налога (8)
+    
+    @param executor_states: Статусы исполнителей для обработки
+    @param nds: ставка НДС (по умолчанию 20.0%)
+    @param remuneration_percent: процент вознаграждения от суммы HOOPS
+    @param hotel: объект гостиницы для получения названия
+    @param date_start: дата начала периода
+    @param date_end: дата окончания периода
+    @return: кортеж (список RowForInvoice, общая_сумма_hoops, общая_сумма_исполнителей, общий_ндс)
     """
+    # Счетчик строк для нумерации в акте
     number_row = 1
-    total_price = 0.0
-    total_sum_for_executer = 0.0
-    total_tax = 0.0
-    # по профессиям - их имена и океи коды
+    # Итоговые суммы для акта
+    total_price = 0.0          # Общая сумма к оплате (столбец 8)
+    total_sum_for_executer = 0.0  # Сумма услуг исполнителей без НДС
+    total_tax = 0.0            # Общий НДС (столбец 7)
+    
+    # Результирующий список строк для акта
     res_hoops = []
+    
+    # ОБРАБОТКА ПО ПРОФЕССИЯМ
+    # Группируем статусы по профессиям (официант, бармен, хостес и т.д.)
+    # Каждая профессия имеет свой ОКЕИ код для единиц измерения
     for name, okei in Profession.okei.items():
-        # статусы текущей профессии
+        # Получаем все статусы исполнителей текущей профессии
         current_executer_states = executor_states.filter(task__profession__numerate=name)
-        # множество уникальных ставок статусов
+        
+        # ГРУППИРОВКА ПО СТАВКАМ
+        # В рамках одной профессии могут быть разные ставки оплаты
+        # Группируем по уникальным ставкам (rent) для корректного расчета
         list_of_distinct_rent = set(
             current_executer_states.values_list("task__rent", flat=True).annotate(count=Count("task__rent"))
         )
 
-        # для каждой уникальной ставки текущих статусов
+        # ОБРАБОТКА КАЖДОЙ ГРУППЫ СТАВОК
         for rent in list_of_distinct_rent:
-            # количество часов
-            worktime_in_current_tasks_hours = 0
-            # сумма получаемая hoops
-            hoops_cost = 0.0
-            executer_cost = 0.0
-            # список заявок
-            tasks = []
+            # Накопительные переменные для текущей группы ставок
+            worktime_in_current_tasks_hours = 0  # Общее время работы (столбец 4)
+            hoops_cost = 0.0                    # Сумма для HOOPS (основная услуга)
+            executer_cost = 0.0                 # Сумма для исполнителей (услуги исполнителей)
+            tasks = []                          # Список номеров заявок
 
+            # АГРЕГАЦИЯ ДАННЫХ ПО СТАТУСАМ
+            # Проходим по всем статусам с текущей ставкой
             for executor_state in current_executer_states.filter(task__rent=rent):
+                # ПРОВЕРКА ЗАВЕРШЕННОСТИ РАБОТЫ
+                # Статус должен быть "STOP" - работа завершена
                 if executor_state.status != "STOP":
                     raise ValueError(
                         f"В заявке {executor_state.task.id} у "
@@ -377,74 +484,115 @@ def format_executers_states_to_invoice_format(
                         f"{executor_state.executer.middle_name} {executor_state.executer.first_name} "
                         f"{executor_state.executer.second_name} не закончил работать!"
                     )
+                
+                # ПРОВЕРКА ФИНАНСОВОЙ ПРОВЕРКИ
+                # Статус должен быть проверен в финансах
                 if not executor_state.is_check_in_finance:
                     continue
 
+                # НАКОПЛЕНИЕ ДАННЫХ
+                # Суммируем время работы, суммы для HOOPS и исполнителей
                 worktime_in_current_tasks_hours += executor_state.get_work_time_in_hours
                 hoops_cost += executor_state.get_sum_for_hoops
                 executer_cost += executor_state.get_sum_for_pay
                 tasks.append(executor_state.task.id)
 
+            # ОБРАБОТКА НЕНУЛЕВЫХ РЕЗУЛЬТАТОВ
             if worktime_in_current_tasks_hours:
+                # ОКРУГЛЕНИЕ ВРЕМЕНИ РАБОТЫ
+                # Применяем специальное округление для HOOPS
                 worktime_in_current_tasks_hours = round_value_for_hoops(worktime_in_current_tasks_hours)
+                
+                # РАСЧЕТ НДС ДЛЯ ОСНОВНОЙ УСЛУГИ
+                # НДС рассчитывается от суммы HOOPS (основная услуга)
                 tax = calc_tax(hoops_cost, nds)
 
+                # РАСЧЕТ ВОЗНАГРАЖДЕНИЯ
+                # Вознаграждение = процент от суммы HOOPS
                 current_remuneration = round(hoops_cost / 100 * remuneration_percent, 2)
+                # Сумма HOOPS без вознаграждения (для основной услуги)
                 hoops_cost_without_remuneration = hoops_cost - current_remuneration
 
+                # ФОРМАТИРОВАНИЕ СТРОК ДЛЯ ОТЧЕТА
+                # Вознаграждение без НДС (столбец 6 для строки вознаграждения)
                 current_remuneration_without_tax = RowForInvoice.get_str_with_format(
                     calc_cost_without_tax(current_remuneration, nds)
                 )
+                # НДС с вознаграждения (столбец 7 для строки вознаграждения)
                 remuneration_tax_str = RowForInvoice.get_str_with_format(calc_tax(current_remuneration, nds))
+                # Цена за единицу вознаграждения (столбец 5 для строки вознаграждения)
                 remuneration_rent_str = RowForInvoice.get_str_with_format(
                     current_remuneration / worktime_in_current_tasks_hours
                 )
 
+                # Цена за единицу основной услуги без вознаграждения (столбец 5 для основной строки)
                 hoops_cost_without_remuneration_rent_str = RowForInvoice.get_str_with_format(
                     hoops_cost_without_remuneration / worktime_in_current_tasks_hours
                 )
 
+                # СОЗДАНИЕ ОБЪЕКТА СТРОКИ ДЛЯ АКТА
                 res_hoops.append(
                     RowForInvoice(
-                        hotel_name=hotel.nameHotel if hotel else '',
-                        number=number_row,
-                        tasks=", ".join(str(x) for x in set(tasks)),
-                        volume=worktime_in_current_tasks_hours,
+                        # Базовые данные
+                        hotel_name=hotel.nameHotel if hotel else '',  # Название гостиницы
+                        number=number_row,                            # Номер строки (столбец 1)
+                        tasks=", ".join(str(x) for x in set(tasks)), # Номера заявок
+                        
+                        # Объем работ
+                        volume=worktime_in_current_tasks_hours,      # Количество часов (столбец 4)
                         volume_str=RowForInvoice.get_str_with_format(worktime_in_current_tasks_hours),
-                        hoops_cost=round(hoops_cost, 2),
-                        hoops_cost_without_remuneration=round(hoops_cost_without_remuneration, 2),
+                        
+                        # Суммы для HOOPS (основная услуга)
+                        hoops_cost=round(hoops_cost, 2),             # Общая сумма HOOPS
+                        hoops_cost_without_remuneration=round(hoops_cost_without_remuneration, 2),  # Без вознаграждения
+                        
+                        # Основная услуга без НДС (столбец 6 для основной строки)
                         hoops_cost_without_remuneration_without_tax_str=RowForInvoice.get_str_with_format(
                             calc_cost_without_tax(hoops_cost_without_remuneration, nds)
                         ),
+                        # НДС основной услуги (столбец 7 для основной строки)
                         hoops_cost_without_remuneration_tax_str=RowForInvoice.get_str_with_format(
                             calc_tax(hoops_cost_without_remuneration, nds)
                         ),
-                        executer_cost=round(executer_cost, 2),
-                        okei_code=okei.get("code"),
-                        okei_name=okei.get("num"),
-                        rent_str=RowForInvoice.get_str_with_format(hoops_cost / 1.2 / worktime_in_current_tasks_hours),
+                        
+                        # Суммы для исполнителей (услуги исполнителей - без НДС)
+                        executer_cost=round(executer_cost, 2),      # Сумма услуг исполнителей
+                        
+                        # ОКЕИ коды (столбец 3)
+                        okei_code=okei.get("code"),                  # Код единицы измерения
+                        okei_name=okei.get("num"),                   # Название единицы измерения
+                        
+                        # Цены за единицу (столбец 5)
+                        rent_str=RowForInvoice.get_str_with_format(hoops_cost / 1.2 / worktime_in_current_tasks_hours),  # Цена основной услуги
                         rent_for_executer=RowForInvoice.get_str_with_format(
-                            executer_cost / worktime_in_current_tasks_hours
+                            executer_cost / worktime_in_current_tasks_hours  # Цена услуг исполнителей
                         ),
+                        
+                        # Дополнительные расчеты для отчетов
                         hoops_without_tax_str=RowForInvoice.get_str_with_format(
-                            calc_cost_without_tax(hoops_cost, nds)
+                            calc_cost_without_tax(hoops_cost, nds)  # HOOPS без НДС
                         ),
-                        tax_str=RowForInvoice.get_str_with_format(tax),
-                        nds=str(nds),
-                        remuneration=current_remuneration,
-                        remuneration_without_tax_str=current_remuneration_without_tax,
-                        remuneration_tax_str=remuneration_tax_str,
-                        remuneration_rent_str=remuneration_rent_str,
-                        hoops_cost_without_remuneration_rent_str=hoops_cost_without_remuneration_rent_str,
+                        tax_str=RowForInvoice.get_str_with_format(tax),  # НДС основной услуги
+                        nds=str(nds),                               # Ставка НДС
+                        
+                        # Данные вознаграждения
+                        remuneration=current_remuneration,          # Сумма вознаграждения
+                        remuneration_without_tax_str=current_remuneration_without_tax,  # Без НДС (столбец 6)
+                        remuneration_tax_str=remuneration_tax_str, # НДС вознаграждения (столбец 7)
+                        remuneration_rent_str=remuneration_rent_str, # Цена за единицу (столбец 5)
+                        hoops_cost_without_remuneration_rent_str=hoops_cost_without_remuneration_rent_str,  # Цена основной услуги
+                        
+                        # Период
                         date_start=date_start if date_start else None,
                         date_end=date_end if date_end else None,
                     )
                 )
 
-                total_price += hoops_cost
-                total_sum_for_executer += executer_cost
-                number_row += 1
-                total_tax += tax
+                # НАКОПЛЕНИЕ ИТОГОВЫХ СУММ
+                total_price += hoops_cost                    # Общая сумма к оплате
+                total_sum_for_executer += executer_cost      # Сумма услуг исполнителей
+                number_row += 1                              # Следующий номер строки
+                total_tax += tax                            # Общий НДС
 
     return res_hoops, total_price, total_sum_for_executer, total_tax
 
