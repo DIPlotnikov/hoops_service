@@ -46,7 +46,7 @@ def act_creator(
         <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{6}</div></td>
     </tr>
     <tr class=\"no-break-row\">
-        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{11}</div></td>
+        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{7}</div></td>
         <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">Вознаграждение за исполнение поручения по заявкам №{1}</div></td>
         <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
         <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
@@ -56,7 +56,7 @@ def act_creator(
         <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{15}</div></td>
     </tr>
     <tr class=\"no-break-row\">
-        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{7}</div></td>
+        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{11}</div></td>
         <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">Оплата HOOPS для выплаты исполнителям согласно раздела 4 договора оферты ред. OFFER_DATE, акцепт ACCEPTED_AT за оказанные услуги по заявкам  №{1}</div></td>
         <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
         <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
