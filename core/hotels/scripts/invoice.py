@@ -2,11 +2,12 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 import pdfkit
 from django.db.models import Count
-from hotels.utils.invoice import round_value_for_hoops
+from hotels.utils.invoice import round_money_4_5, round_value_for_hoops, round_volume_by_spec
 
 from .nds_handler import calc_tax, calc_cost_without_tax
 from ..config import bucket as bucket
@@ -492,43 +493,64 @@ def format_executers_states_to_invoice_format(
 
                 # НАКОПЛЕНИЕ ДАННЫХ
                 # Суммируем время работы, суммы для HOOPS и исполнителей
-                worktime_in_current_tasks_hours += executor_state.get_work_time_in_hours
-                hoops_cost += executor_state.get_sum_for_hoops
-                executer_cost += executor_state.get_sum_for_pay
+                worktime_in_current_tasks_hours += executor_state.get_work_time_in_hours # объем. Округляем и больше не трогаем. todo еще нужно добавить округление.
                 tasks.append(executor_state.task.id)
 
             # ОБРАБОТКА НЕНУЛЕВЫХ РЕЗУЛЬТАТОВ
             if worktime_in_current_tasks_hours:
-                # ОКРУГЛЕНИЕ ВРЕМЕНИ РАБОТЫ
-                # Применяем специальное округление для HOOPS
-                worktime_in_current_tasks_hours = round_value_for_hoops(worktime_in_current_tasks_hours)
+
+                # считаем цены за единицу
+                # процент для оплаты услуг компании
+                prof_percent = Decimal(str(executor_state.task.profession.percent))
+                # процент для оплаты вознаграждения
+                remuneration_percent_decimal = Decimal(str(remuneration_percent))
+                # Полная оплата за заявку
+                rent_decimal = Decimal(str(rent))
                 
-                # РАСЧЕТ НДС ДЛЯ ОСНОВНОЙ УСЛУГИ
-                # НДС рассчитывается от суммы HOOPS (основная услуга)
-                tax = calc_tax(hoops_cost, nds)
+                
+                # Цена услуг исполнителей за единицу
+                rent_for_executer = rent_decimal - (rent_decimal * prof_percent / 100)
+                # Стоимость услуги HOOPS за единицу
+                rent_for_hoops = (rent_decimal - rent_for_executer) * remuneration_percent_decimal / 100
+                # Вознаграждение за единицу
+                remuneration_for_executer = rent_decimal - rent_for_hoops - rent_for_executer
 
-                # РАСЧЕТ ВОЗНАГРАЖДЕНИЯ
-                # Вознаграждение = процент от суммы HOOPS
-                current_remuneration = round(hoops_cost / 100 * remuneration_percent, 2)
-                # Сумма HOOPS без вознаграждения (для основной услуги)
-                hoops_cost_without_remuneration = hoops_cost - current_remuneration
+                is_correct_sum = bool(rent_for_executer + rent_for_hoops + remuneration_for_executer == rent_decimal) # todo возможно нужно логировать.
 
-                # ФОРМАТИРОВАНИЕ СТРОК ДЛЯ ОТЧЕТА
-                # Вознаграждение без НДС (столбец 6 для строки вознаграждения)
-                current_remuneration_without_tax = RowForInvoice.get_str_with_format(
-                    calc_cost_without_tax(current_remuneration, nds)
-                )
-                # НДС с вознаграждения (столбец 7 для строки вознаграждения)
-                remuneration_tax_str = RowForInvoice.get_str_with_format(calc_tax(current_remuneration, nds))
-                # Цена за единицу вознаграждения (столбец 5 для строки вознаграждения)
-                remuneration_rent_str = RowForInvoice.get_str_with_format(
-                    current_remuneration / worktime_in_current_tasks_hours
-                )
+                # Округление стоимости за единицу
+                rent_for_executer = round_money_4_5(rent_for_executer)
+                rent_for_hoops = round_money_4_5(rent_for_hoops)
+                remuneration_for_executer = round_money_4_5(remuneration_for_executer)
+                
+                # ОКРУГЛЕНИЕ ВРЕМЕНИ РАБОТЫ
+                # Применяем специальное округление для HOOPS (объем работ)
+                worktime_in_current_tasks_hours = round_volume_by_spec(worktime_in_current_tasks_hours)
+                
+                hoops_cost = rent_for_hoops * worktime_in_current_tasks_hours
+                hoops_remuneration = remuneration_for_executer * worktime_in_current_tasks_hours
+                executer_cost = rent_for_executer * worktime_in_current_tasks_hours
 
-                # Цена за единицу основной услуги без вознаграждения (столбец 5 для основной строки)
-                hoops_cost_without_remuneration_rent_str = RowForInvoice.get_str_with_format(
-                    hoops_cost_without_remuneration / worktime_in_current_tasks_hours
-                )
+                # Округление полной стоимости
+                hoops_cost = round_money_4_5(hoops_cost)
+                hoops_remuneration = round_money_4_5(hoops_remuneration)
+                executer_cost = round_money_4_5(executer_cost)
+
+                # Расчет НДС
+                nds_hoops = calc_tax(hoops_cost, nds)
+                nds_remuneration = calc_tax(hoops_remuneration, nds)
+                # Не облагается НДС
+                nds_executer = 0
+
+                # Расчет стоимости без НДС
+                hoops_cost_without_tax = hoops_cost - nds_hoops
+                hoops_remuneration_without_tax = hoops_remuneration - nds_remuneration
+                executer_cost_without_tax = executer_cost - nds_executer
+
+                # Округление полной стоимости без НДС
+                hoops_cost_without_tax = round_money_4_5(hoops_cost_without_tax)
+                hoops_remuneration_without_tax = round_money_4_5(hoops_remuneration_without_tax)
+                executer_cost_without_tax = round_money_4_5(executer_cost_without_tax)
+
 
                 # СОЗДАНИЕ ОБЪЕКТА СТРОКИ ДЛЯ АКТА
                 res_hoops.append(
@@ -538,61 +560,53 @@ def format_executers_states_to_invoice_format(
                         number=number_row,                            # Номер строки (столбец 1)
                         tasks=", ".join(str(x) for x in set(tasks)), # Номера заявок
                         
-                        # Объем работ
-                        volume=worktime_in_current_tasks_hours,      # Количество часов (столбец 4)
-                        volume_str=RowForInvoice.get_str_with_format(worktime_in_current_tasks_hours),
+                        # Объем работ - приводим к float и применяем округление объёмов
+                        volume=float(round_volume_by_spec(worktime_in_current_tasks_hours)),  # Количество часов (столбец 4)
+                        volume_str=RowForInvoice.get_str_with_format(round_volume_by_spec(worktime_in_current_tasks_hours)),
                         
-                        # Суммы для HOOPS (основная услуга)
-                        hoops_cost=round(hoops_cost, 2),             # Общая сумма HOOPS
-                        hoops_cost_without_remuneration=round(hoops_cost_without_remuneration, 2),  # Без вознаграждения
+                        # Суммы для HOOPS (основная услуга) - приводим к float
+                        hoops_cost=float(hoops_cost + hoops_remuneration),             # Общая сумма HOOPS
+                        hoops_cost_without_remuneration=float(hoops_cost),  # Без вознаграждения
                         
-                        # Основная услуга без НДС (столбец 6 для основной строки)
-                        hoops_cost_without_remuneration_without_tax_str=RowForInvoice.get_str_with_format(
-                            calc_cost_without_tax(hoops_cost_without_remuneration, nds)
-                        ),
-                        # НДС основной услуги (столбец 7 для основной строки)
-                        hoops_cost_without_remuneration_tax_str=RowForInvoice.get_str_with_format(
-                            calc_tax(hoops_cost_without_remuneration, nds)
-                        ),
+                        # Основная услуга без НДС (столбец 6 для основной строки) - строки
+                        hoops_cost_without_remuneration_without_tax_str=hoops_cost_without_tax,
+                        # НДС основной услуги (столбец 7 для основной строки) - строки
+                        hoops_cost_without_remuneration_tax_str=nds_hoops,
                         
-                        # Суммы для исполнителей (услуги исполнителей - без НДС)
-                        executer_cost=round(executer_cost, 2),      # Сумма услуг исполнителей
+                        # Суммы для исполнителей (услуги исполнителей - без НДС) - float
+                        executer_cost=float(executer_cost),      # Сумма услуг исполнителей
                         
-                        # ОКЕИ коды (столбец 3)
+                        # ОКЕИ коды (столбец 3) - строки
                         okei_code=okei.get("code"),                  # Код единицы измерения
                         okei_name=okei.get("num"),                   # Название единицы измерения
                         
-                        # Цены за единицу (столбец 5)
-                        rent_str=RowForInvoice.get_str_with_format(hoops_cost / 1.2 / worktime_in_current_tasks_hours),  # Цена основной услуги
-                        rent_for_executer=RowForInvoice.get_str_with_format(
-                            executer_cost / worktime_in_current_tasks_hours  # Цена услуг исполнителей
-                        ),
+                        # Цены за единицу (столбец 5) - строки
+                        rent_str=rent_for_hoops,  # Цена основной услуги
+                        rent_for_executer=rent_for_executer,  # Цена услуг исполнителей
                         
-                        # Дополнительные расчеты для отчетов
-                        hoops_without_tax_str=RowForInvoice.get_str_with_format(
-                            calc_cost_without_tax(hoops_cost, nds)  # HOOPS без НДС
-                        ),
-                        tax_str=RowForInvoice.get_str_with_format(tax),  # НДС основной услуги
+                        # Дополнительные расчеты для отчетов - строки
+                        hoops_without_tax_str=hoops_cost_without_tax,  # HOOPS без НДС
+                        tax_str=nds_hoops,  # НДС основной услуги
                         nds=str(nds),                               # Ставка НДС
                         
-                        # Данные вознаграждения
-                        remuneration=current_remuneration,          # Сумма вознаграждения
-                        remuneration_without_tax_str=current_remuneration_without_tax,  # Без НДС (столбец 6)
-                        remuneration_tax_str=remuneration_tax_str, # НДС вознаграждения (столбец 7)
-                        remuneration_rent_str=remuneration_rent_str, # Цена за единицу (столбец 5)
-                        hoops_cost_without_remuneration_rent_str=hoops_cost_without_remuneration_rent_str,  # Цена основной услуги
+                        # Данные вознаграждения - приводим к правильным типам
+                        remuneration=float(hoops_remuneration),          # Сумма вознаграждения
+                        remuneration_without_tax_str=hoops_remuneration_without_tax,  # Без НДС (столбец 6)
+                        remuneration_tax_str=nds_remuneration, # НДС вознаграждения (столбец 7)
+                        remuneration_rent_str=remuneration_for_executer, # Цена за единицу (столбец 5)
+                        hoops_cost_without_remuneration_rent_str=rent_for_hoops,  # Цена основной услуги
                         
-                        # Период
+                        # Период - строки или None
                         date_start=date_start if date_start else None,
                         date_end=date_end if date_end else None,
                     )
                 )
 
                 # НАКОПЛЕНИЕ ИТОГОВЫХ СУММ
-                total_price += hoops_cost                    # Общая сумма к оплате
-                total_sum_for_executer += executer_cost      # Сумма услуг исполнителей
+                total_price += float(hoops_cost + hoops_remuneration)                    # Общая сумма к оплате
+                total_sum_for_executer += float(executer_cost)      # Сумма услуг исполнителей
                 number_row += 1                              # Следующий номер строки
-                total_tax += tax                            # Общий НДС
+                total_tax += float(nds_hoops + nds_remuneration)   # Общий НДС
 
     return res_hoops, total_price, total_sum_for_executer, total_tax
 

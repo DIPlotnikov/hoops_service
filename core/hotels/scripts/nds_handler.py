@@ -1,3 +1,6 @@
+from hotels.utils.invoice import round_money_4_5
+
+
 def calc_tax(price, nds):
     """
     Расчет НДС в стоимости
@@ -7,7 +10,7 @@ def calc_tax(price, nds):
     """
     if nds is None:
         return None
-    return round(price / (100 + nds) * nds, 2)
+    return round_money_4_5(price / (100 + nds) * nds)
 
 
 def calc_cost_without_tax(price, nds):
