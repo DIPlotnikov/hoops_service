@@ -14,7 +14,7 @@ from hotels.models import (
 from hotels.schemas.admin.input import InputIds
 from hotels.schemas.schema_handler import is_admin
 from hotels.scripts.act_priem import act_creator, act_creator_for_group_cd
-from hotels.scripts.bill_ver_create import BillCreator
+from hotels.scripts.bill_ver_create import BillCreator, BillCreatorGCD
 from hotels.scripts.diadok_builder import DiadokBuilder
 from hotels.scripts.invoice import format_executers_states_to_invoice_format, invoice_creator, \
     invoice_creator_for_group_cd
@@ -409,7 +409,7 @@ class CreateGroupedClosingDocuments(graphene.Mutation):
                 # список номеров заявок
                 # формируем платежки
                 # todo после такси с уточнением инфы нужно будет поменять.
-                bill = BillCreator(
+                bill = BillCreatorGCD(
                     number=str(payment.pk),
                     email=all_tasks[0].manager.hotel.email,
                     ur_name=all_tasks[0].manager.hotel.nameLegalEntity,

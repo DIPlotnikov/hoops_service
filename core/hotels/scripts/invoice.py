@@ -772,7 +772,7 @@ def invoice_creator_for_group_cd(
     if closing_date is None:
         closing_date = datetime.now()
 
-    file = "SAMPLE_INVOICE.html"
+    file = "SAMPLE_INVOICE_GCD.html"
 
     rows_for_1_task = """
     <tr>

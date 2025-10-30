@@ -4,6 +4,52 @@
     <meta charset="utf-8">
     <meta name="pdfkit-page-size" content="A4"/>
     <title>Untitled Document</title>
+    <style>
+    /* Prevent page breaks within table rows */
+    table { 
+        border-collapse: collapse;
+    }
+    
+    /* Critical: each cell div must not break */
+    .cell-content {
+        display: block;
+        page-break-inside: avoid;
+        -webkit-region-break-inside: avoid;
+    }
+    
+    /* Row must not break */
+    .no-break-row {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    
+    /* Ensure cells don't break */
+    .no-break-row td {
+        page-break-inside: avoid;
+    }
+    
+    /* Each row table must not break */
+    table table {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* Print-specific rules */
+    @media print {
+        .no-break-row {
+            page-break-inside: avoid !important;
+        }
+        .cell-content {
+            page-break-inside: avoid !important;
+        }
+        table table {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+    }
+    </style>
 </head>
 
 
@@ -20,15 +66,15 @@
 <br>
 <p>Основание сдачи(передачи)<span style="padding-left: 50px;"> </span><u>Договор-оферта ред. {OFFER}, Акцепт ACCEPTED_AT</u></p>
 <table width="100%"
-       style="border-collapse: collapse; width: 100%;font-size: 12px">
+       style="border-collapse: collapse; width: 100%;font-size: 12px; table-layout: fixed;">
     <tr>
         <td style="width:7%; text-align: center; border: 1px solid grey;">Номер по поряд-ку</td>
         <td style="text-align: center;border: 1px solid grey; ">Наименование работы(услуг)</td>
         <td style="width:7%; text-align: center;border: 1px solid grey;">Единица измере-ния</td>
 
         <td style="width:7%; text-align: center;border: 1px solid grey; ">Кол-во</td>
-        <td style="width:10%;  text-align: center;border: 1px solid grey;">Цена (тариф) за единицу</td>
-        <td style="width:15%;  text-align: center;border: 1px solid grey;">Стоимость работ (услуг) всего без налога
+        <td style="width:12.5%;  text-align: center;border: 1px solid grey;">Цена (тариф) за единицу</td>
+        <td style="width:12.5%;  text-align: center;border: 1px solid grey;">Стоимость работ (услуг) всего без налога
         </td>
         <td style="width:15%;  text-align: center;border: 1px solid grey;">Сумма налога</td>
         <td style="width:15%;  text-align: center;border: 1px solid grey;">Сумма с учетом налога</td>
@@ -45,16 +91,20 @@
     </tr>
     {DATA}
     <tr>
-        <td style="text-align: center; border-bottom: 0px"></td>
-        <td style="text-align: center; "></td>
-        <td style="text-align: center; "></td>
-        <td style="text-align: center; "></td>
-        <td style="text-align: right;font-weight: bold; ">Всего к оплате:</td>
-        <td style="text-align: right;border: 1px solid grey;font-weight: bold; ">{SUM_WITHOUT_TAX}
+        <td colspan="8" style="padding: 0; margin: 0; border: 0;">
+            <table style="width: 100%; border-collapse: collapse; page-break-inside: avoid; margin: 0; padding: 0; table-layout: fixed; font-size: 12px;">
+                <tr>
+                    <td style="width:7%; text-align: center; border: 0;"></td>
+                    <td style="text-align: center; border: 0;"></td>
+                    <td style="width:7%; text-align: center; border: 0;"></td>
+                    <td style="width:7%; text-align: center; border: 0;"></td>
+                    <td style="width:12.5%; text-align: right; font-weight: bold; border: 0;">Всего к оплате:</td>
+                    <td style="width:12.5%; text-align: right; border: 1px solid grey; font-weight: bold;">{SUM_WITHOUT_TAX}</td>
+                    <td style="width:15%; text-align: right; border: 1px solid grey; font-weight: bold;">{SUM_TAX}</td>
+                    <td style="width:15%; text-align: right; border: 1px solid grey; font-weight: bold;">{SUM}</td>
+                </tr>
+            </table>
         </td>
-        <td style="text-align: right; border: 1px solid grey;font-weight: bold; ">{SUM_TAX}</td>
-        <td style="text-align: right; border: 1px solid grey;font-weight: bold; ">{SUM}</td>
-
     </tr>
 </table>
 </br>

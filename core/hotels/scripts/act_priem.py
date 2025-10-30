@@ -168,38 +168,44 @@ def act_creator_for_group_cd(
 ):
 
     logger.info("Создание счет фактуры html")
-    file = "SAMPLE_ACT_PRIEMKA.html"
+    file = "SAMPLE_ACT_PRIEMKA_GCD.html"
     rows_for_1_task = """
-    <tr class=\"no-break-row\">
-        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{0}</div></td>
-        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{1} Оплата услуг HOOPS Service за период {FORMATED_DATE}</div></td>
-        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{3}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{4}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{5}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{6}</div></td>
-    </tr>
-    <tr class=\"no-break-row\">
-        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{7}</div></td>
-        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{1} Вознаграждение за исполнение поручения за период {FORMATED_DATE}</div></td>
-        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{12}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{13}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{14}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{15}</div></td>
-    </tr>
-    <tr class=\"no-break-row\">
-        <td style=\"text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{11}</div></td>
-        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{1} Оплата HOOPS для выплаты исполнителям за период {FORMATED_DATE}</div></td>
-        <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{8}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{9}</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">Без НДС</div></td>
-        <td style=\"text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{9}</div></td>
-    </tr>
+    <table style=\"width: 100%; border-collapse: collapse; page-break-inside: avoid; margin: 0; padding: 0; table-layout: fixed; font-size: 12px;\">
+        <tr>
+            <td style=\"width:7%; text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{0}</div></td>
+            <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{1} Оплата услуг HOOPS Service за период {FORMATED_DATE}</div></td>
+            <td style=\"width:7%; text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
+            <td style=\"width:7%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
+            <td style=\"width:12.5%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{3}</div></td>
+            <td style=\"width:12.5%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{4}</div></td>
+            <td style=\"width:15%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{5}</div></td>
+            <td style=\"width:15%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{6}</div></td>
+        </tr>
+    </table>
+    <table style=\"width: 100%; border-collapse: collapse; page-break-inside: avoid; margin: 0; padding: 0; table-layout: fixed; font-size: 12px;\">
+        <tr>
+            <td style=\"width:7%; text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{7}</div></td>
+            <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{1} Вознаграждение за исполнение поручения за период {FORMATED_DATE}</div></td>
+            <td style=\"width:7%; text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
+            <td style=\"width:7%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
+            <td style=\"width:12.5%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{12}</div></td>
+            <td style=\"width:12.5%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{13}</div></td>
+            <td style=\"width:15%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{14}</div></td>
+            <td style=\"width:15%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{15}</div></td>
+        </tr>
+    </table>
+    <table style=\"width: 100%; border-collapse: collapse; page-break-inside: avoid; margin: 0; padding: 0; table-layout: fixed; font-size: 12px;\">
+        <tr>
+            <td style=\"width:7%; text-align: center; border: 1px solid grey;\"><div class=\"cell-content\">{11}</div></td>
+            <td style=\"text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{1} Оплата HOOPS для выплаты исполнителям за период {FORMATED_DATE}</div></td>
+            <td style=\"width:7%; text-align: left; border: 1px solid grey;\"><div class=\"cell-content\">{10}</div></td>
+            <td style=\"width:7%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{2}</div></td>
+            <td style=\"width:12.5%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{8}</div></td>
+            <td style=\"width:12.5%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{9}</div></td>
+            <td style=\"width:15%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">Без НДС</div></td>
+            <td style=\"width:15%; text-align: right; border: 1px solid grey;\"><div class=\"cell-content\">{9}</div></td>
+        </tr>
+    </table>
     """
 
     rows_for_all_task = ""

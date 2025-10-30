@@ -1,4 +1,66 @@
-﻿<div class="main">
+﻿<style>
+/* Force rows to stay together using multiple approaches */
+table { 
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100% !important;
+}
+thead { 
+    display: table-header-group; 
+}
+tbody { 
+    display: table-row-group; 
+}
+
+/* Critical: each cell div must not break */
+.cell-content {
+    display: block;
+    page-break-inside: avoid;
+    -webkit-region-break-inside: avoid;
+}
+
+/* Row must not break - use class for specificity */
+.no-break-row {
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+/* Ensure cells don't break */
+.no-break-row td {
+    page-break-inside: avoid;
+}
+
+/* Each row table must not break */
+table table {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0;
+    padding: 0;
+    table-layout: fixed;
+    width: 100% !important;
+}
+
+/* Force column widths to be stable */
+th, td {
+    min-width: 0;
+    max-width: none;
+}
+
+/* Print-specific rules */
+@media print {
+    .no-break-row {
+        page-break-inside: avoid !important;
+    }
+    .cell-content {
+        page-break-inside: avoid !important;
+    }
+    table table {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+}
+</style>
+<div class="main">
 <table width="100%" style="font-family: Arial;">
     <tr >
         <td style="width: 68%; padding: 20px 0;">
@@ -98,19 +160,17 @@
 </table>
 
 
-<table border="2" width="100%" cellpadding="2" cellspacing="2" style="border-collapse: collapse; width: 100%; font-family: Arial;">
+<table border="2" width="100%" cellpadding="2" cellspacing="2" style="border-collapse: collapse; width: 100%; font-family: Arial; table-layout: fixed;">
     <thead>
     <tr>
-        <th style="width:13mm; ">№</th>
-       
-        <th>Товары (работы, услуги)</th>
-        <th style="width:20mm; ">Кол-во</th>
-
-        <th style="width:27mm;  ">Цена</th>
-        <th style="width:27mm;  ">Сумма</th>
+        <th style="width:8%;">№</th>
+        <th style="width:60%;">Товары (работы, услуги)</th>
+        <th style="width:12%;">Кол-во</th>
+        <th style="width:10%;">Цена</th>
+        <th style="width:10%;">Сумма</th>
     </tr>
     </thead>
-    <tbody >
+    <tbody>
     {GOODS_TR}
     </tbody>
 </table>
