@@ -241,7 +241,7 @@ class BillCreatorGCD(object):
             self.closing_date = closing_date
         self._total_rub = 1.00
         self._goods_html_ = """
-        <table style=\"width: 100%; border-collapse: collapse; page-break-inside: avoid; margin: 0; padding: 0; table-layout: fixed;\">
+        <table style=\"width: 100%; border-collapse: collapse; page-break-inside: avoid; margin: 0; padding: 0; table-layout: fixed; font-size: 12px;\">
             <tr>
                 <td style=\"width:8%; text-align: center; border: 1px solid #000;\"><div class=\"cell-content\">{0}</div></td>
                 <td style=\"width:60%; text-align: center; border: 1px solid #000;\"><div class=\"cell-content\">{1}</div></td>
