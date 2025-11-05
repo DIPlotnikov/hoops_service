@@ -775,44 +775,84 @@ def invoice_creator_for_group_cd(
     file = "SAMPLE_INVOICE_GCD.html"
 
     rows_for_1_task = """
-    <tr>
-      <td style=\"border-right:2px solid #000\"><div> </div></td>
-      <td><div>{0}</div></td>
-      <td><div>{1} Оплата услуг HOOPS Service за период {FORMATED_DATE}</div></td>
-      <td><div> </div></td>
-      <td><div>{2}</div></td>
-      <td><div>{8}</div></td>
-      <td><div>{3}</div></td>
-      <td><div>{4}</div></td>
-      <td><div>{5}</div></td>
-      <td><div></div></td>
-      <td><div>{9}</div></td>
-      <td><div>{7}</div></td>
-      <td><div>{6:.2f}</div></td>
-      <td><div> </div></td>
-      <td><div> </div></td>
-      <td><div> </div></td>
-    </tr>
+    <table style=\"width: 100%; border-collapse: collapse; page-break-inside: avoid; margin: 0; padding: 0; table-layout: fixed;\">
+        <colgroup>
+            <col style=\"width: 8.68%;\">
+            <col style=\"width: 2.43%;\">
+            <col style=\"width: 31.42%;\">
+            <col style=\"width: 3.21%;\">
+            <col style=\"width: 3.12%;\">
+            <col style=\"width: 3.91%;\">
+            <col style=\"width: 5.56%;\">
+            <col style=\"width: 5.56%;\">
+            <col style=\"width: 5.47%;\">
+            <col style=\"width: 3.99%;\">
+            <col style=\"width: 3.99%;\">
+            <col style=\"width: 5.56%;\">
+            <col style=\"width: 5.47%;\">
+            <col style=\"width: 2.86%;\">
+            <col style=\"width: 3.65%;\">
+            <col style=\"width: 5.12%;\">
+        </colgroup>
+        <tr>
+            <td style=\"border-right:2px solid #000; border: 1px solid #000;\"><div class=\"cell-content\"> </div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\">{0}</div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\">{1} Оплата услуг HOOPS Service за период {FORMATED_DATE}</div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\"> </div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\">{2}</div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\">{8}</div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{3}</div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{4}</div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{5}</div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\"></div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{9}</div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{7}</div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{6:.2f}</div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\"> </div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\"> </div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\"> </div></td>
+        </tr>
+    </table>
     """
     rows_for_remenuration = """
-    <tr>
-      <td style=\"border-right:2px solid #000\"><div> </div></td>
-      <td><div>{0}</div></td>
-      <td><div>{1} Вознаграждение за исполнение поручения за период {FORMATED_DATE}</div></td>
-      <td><div> </div></td>
-      <td><div>{2}</div></td>
-      <td><div>{8}</div></td>
-      <td><div>{3}</div></td>
-      <td><div>{4}</div></td>
-      <td><div>{5}</div></td>
-      <td><div></div></td>
-      <td><div>{9}</div></td>
-      <td><div>{7}</div></td>
-      <td><div>{6:.2f}</div></td>
-      <td><div> </div></td>
-      <td><div> </div></td>
-      <td><div> </div></td>
-    </tr>
+    <table style=\"width: 100%; border-collapse: collapse; page-break-inside: avoid; margin: 0; padding: 0; table-layout: fixed;\">
+        <colgroup>
+            <col style=\"width: 8.68%;\">
+            <col style=\"width: 2.43%;\">
+            <col style=\"width: 31.42%;\">
+            <col style=\"width: 3.21%;\">
+            <col style=\"width: 3.12%;\">
+            <col style=\"width: 3.91%;\">
+            <col style=\"width: 5.56%;\">
+            <col style=\"width: 5.56%;\">
+            <col style=\"width: 5.47%;\">
+            <col style=\"width: 3.99%;\">
+            <col style=\"width: 3.99%;\">
+            <col style=\"width: 5.56%;\">
+            <col style=\"width: 5.47%;\">
+            <col style=\"width: 2.86%;\">
+            <col style=\"width: 3.65%;\">
+            <col style=\"width: 5.12%;\">
+        </colgroup>
+        <tr>
+            <td style=\"border-right:2px solid #000; border: 1px solid #000;\"><div class=\"cell-content\"> </div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\">{0}</div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\">{1} Вознаграждение за исполнение поручения за период {FORMATED_DATE}</div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\"> </div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\">{2}</div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\">{8}</div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{3}</div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{4}</div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{5}</div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\"></div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{9}</div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{7}</div></td>
+            <td style=\"border: 1px solid #000; text-align: right;\"><div class=\"cell-content\">{6:.2f}</div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\"> </div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\"> </div></td>
+            <td style=\"border: 1px solid #000;\"><div class=\"cell-content\"> </div></td>
+        </tr>
+    </table>
     """
 
     rows_for_all_task = ""
@@ -833,6 +873,7 @@ def invoice_creator_for_group_cd(
     formatted_period = format_period_ru(date_start, date_stop)
 
     for executer_state in executor_states:
+        # Каждая строка обернута в отдельную таблицу для предотвращения разрыва
         number_row += 1
         rows_for_all_task += rows_for_1_task.format(
             number_row,

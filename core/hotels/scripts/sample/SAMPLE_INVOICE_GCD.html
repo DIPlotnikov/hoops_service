@@ -130,10 +130,103 @@ h3 {
     }
 }
 
-        .updorderlist, .updorderlist td {
+        .updorderlist {
             border: 1px solid #000;
             border-collapse: collapse;
+            table-layout: fixed;
+            width: 100%;
+            box-sizing: border-box;
         }
+        
+        .updorderlist thead td, .updorderlist thead th {
+            border: 1px solid #000;
+        }
+        
+        /* Ячейки вложенных таблиц не наследуют границы от родителя */
+        .updorderlist table td {
+            border: none;
+        }
+        
+        /* Перенос текста в ячейках заголовка */
+        .updorderlist thead td,
+        .updorderlist thead th {
+            word-break: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            white-space: normal !important;
+            padding: 2px 3px;
+            font-size: 8px;
+            vertical-align: top;
+            line-height: 1.1;
+            text-align: left;
+        }
+        
+        /* Убираем жестко заданные стили, которые могут мешать переносу */
+        .updorderlist thead td[rowspan],
+        .updorderlist thead td[colspan] {
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Фиксированные колонки через colgroup */
+        .updorderlist col {
+            /* Ширины будут заданы в атрибутах colgroup */
+        }
+        
+        /* Числовые колонки в теле таблицы: выравнивание вправо, без переноса */
+        /* 7: Количество (3), 8: Цена (4), 9: Ст-ть без НДС (5), 11: Налог. ставка (7), 12: Сумма налога (8), 13: Ст-ть с НДС (9) */
+        .updorderlist tbody td:nth-child(7),
+        .updorderlist tbody td:nth-child(8),
+        .updorderlist tbody td:nth-child(9),
+        .updorderlist tbody td:nth-child(11),
+        .updorderlist tbody td:nth-child(12),
+        .updorderlist tbody td:nth-child(13) {
+            text-align: right;
+            white-space: nowrap;
+        }
+        
+        /* Текстовая колонка с наименованием в теле таблицы (колонка 3 - 1а): разрешаем переносы */
+        .updorderlist tbody td:nth-child(3) {
+            text-align: left;
+            word-break: break-word;
+            hyphens: auto;
+            white-space: normal;
+        }
+        
+        /* Вложенные таблицы для строк содержимого */
+        .updorderlist table {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            margin: 0;
+            padding: 0;
+            border-collapse: collapse;
+            border-spacing: 0;
+            width: 100%;
+        }
+        
+        /* Убираем двойные границы между вложенными таблицами */
+        .updorderlist table + table tr td {
+            border-top: none;
+        }
+        
+        .updorderlist table:first-of-type tr td {
+            border-top: 1px solid #000;
+        }
+        
+        .updorderlist table:last-of-type tr td {
+            border-bottom: 1px solid #000;
+        }
+        
+        /* Стили для содержимого ячеек вложенных таблиц */
+        .updorderlist table .cell-content {
+            display: block;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            -webkit-region-break-inside: avoid;
+        }
+        
+        /* Ячейки вложенных таблиц используют inline стили для границ */
+        
 
         .updskeleton, .updskeleton > tbody > tr > td {
             border: 1px solid #FFF;
@@ -288,29 +381,47 @@ h3 {
     </tbody>
 </table>
 
-<table class="updorderlist" width="100%" border="0" cellspacing="0" cellpadding="5">
-  <tbody>
+<table class="updorderlist" border="0" cellspacing="0" cellpadding="5">
+  <colgroup>
+    <col style="width: 8.68%;"> <!-- A: Код товара / работ, услуг -->
+    <col style="width: 2.43%;"> <!-- 1: № п/п -->
+    <col style="width: 31.42%;"> <!-- 1а: Наименование -->
+    <col style="width: 3.21%;"> <!-- 1б: Код вида товара -->
+    <col style="width: 3.12%;"> <!-- 2: Код единицы измерения -->
+    <col style="width: 3.91%;"> <!-- 2а: Условное обозначение -->
+    <col style="width: 5.56%;"> <!-- 3: Количество -->
+    <col style="width: 5.56%;"> <!-- 4: Цена -->
+    <col style="width: 5.47%;"> <!-- 5: Стоимость без налога -->
+    <col style="width: 3.99%;"> <!-- 6: В том числе сумма акциза -->
+    <col style="width: 3.99%;"> <!-- 7: Налоговая ставка -->
+    <col style="width: 5.56%;"> <!-- 8: Сумма налога -->
+    <col style="width: 5.47%;"> <!-- 9: Стоимость с налогом -->
+    <col style="width: 2.86%;"> <!-- 10: Цифровой код страны -->
+    <col style="width: 3.65%;"> <!-- 10а: Краткое наименование страны -->
+    <col style="width: 5.12%;"> <!-- 11: Регистрационный номер -->
+  </colgroup>
+  <thead>
     <tr style="font-size:8px">
-      <td width="110" rowspan="2">Код товара / работ, услуг</td>
-      <td width="30" rowspan="2" style="border-left:2px solid #000">№ п/п</td>
+      <td rowspan="2">Код товара / работ, услуг</td>
+      <td rowspan="2" style="border-left:2px solid #000">№ п/п</td>
       <td rowspan="2">Наименование товара (описание выполненных работ, оказанных услуг), имущественного права</td>
-      <td rowspan="2" width="40">Код вида това-
+      <td rowspan="2">Код вида това-
 ра</td>
       <td colspan="2">Единица измерения</td>
-      <td rowspan="2" width="70">Количест-
+      <td rowspan="2">Количест-
 во (объём)</td>
-      <td rowspan="2" width="70">Цена (тариф) за единицу измерения</td>
-      <td rowspan="2" width="70">Стоимость товаров (работ, услуг), имущест-
+      <td rowspan="2">Цена (тариф) за единицу измерения</td>
+      <td rowspan="2">Стоимость товаров (работ, услуг), имущест-
 венных прав без налога — всего</td>
-      <td rowspan="2" width="50">В том числе сумма акциза</td>
-      <td rowspan="2" width="50">Нало-
+      <td rowspan="2">В том числе сумма акциза</td>
+      <td rowspan="2">Нало-
 говая ставка</td>
-      <td rowspan="2" width="70">Сумма налога, предъяв-
+      <td rowspan="2">Сумма налога, предъяв-
 ляемая покупателю</td>
-      <td rowspan="2" width="70">Стоимость товаров (работ, услуг), имущест-
+      <td rowspan="2">Стоимость товаров (работ, услуг), имущест-
 венных прав с налогом — всего</td>
       <td colspan="2">Страна происхождения товара</td>
-      <td rowspan="2" width="60" style="font-size:8px">Регистраци-
+      <td rowspan="2" style="font-size:8px">Регистраци-
 онный номер декларации на товары или регист-
 рационный номер пар-
 тии товара, подлежаще-
@@ -318,14 +429,14 @@ h3 {
 живаемости</td>
     </tr>
     <tr>
-      <td width="40">Код</td>
-      <td width="30">Условно-
+      <td>Код</td>
+      <td>Условно-
 е обоз-
 начение (нацио-
 нальное)</td>
-      <td width="30">Циф-
+      <td>Циф-
 ровой код</td>
-      <td width="30">Краткое наиме-
+      <td>Краткое наиме-
 нование</td>
       </tr>
     <tr>
@@ -346,18 +457,40 @@ h3 {
       <td style="text-align: center; font-size: 8px">10а</td>
       <td style="text-align: center; font-size: 8px">11</td>
     </tr>
+  </thead>
     {TABLE_CONTENT}
-
-    <tr>
-      <td style="border-right:2px solid #000"> </td>
-      <td colspan="7">Всего к оплате (9)</td>
-      <td>{SUM}</td>
-      <td colspan="2" style="text-align: center !important">X</td>
-      <td>{TAX}</td>
-      <td>{FINISH}</td>
-      <td colspan="3"> </td>
-      </tr>
-  </tbody>
+    <table style="width: 100%; border-collapse: collapse; page-break-inside: avoid; margin: 0; padding: 0; table-layout: fixed;">
+        <colgroup>
+            <col style="width: 8.68%;">
+            <col style="width: 2.43%;">
+            <col style="width: 31.42%;">
+            <col style="width: 3.21%;">
+            <col style="width: 3.12%;">
+            <col style="width: 3.91%;">
+            <col style="width: 5.56%;">
+            <col style="width: 5.56%;">
+            <col style="width: 5.47%;">
+            <col style="width: 3.99%;">
+            <col style="width: 3.99%;">
+            <col style="width: 5.56%;">
+            <col style="width: 5.47%;">
+            <col style="width: 2.86%;">
+            <col style="width: 3.65%;">
+            <col style="width: 5.12%;">
+        </colgroup>
+        <tr>
+            <td style="border: 1px solid #000;"> </td>
+            <td colspan="7" style="border-top: 1px solid #000; border-bottom: 1px solid #000; font-weight: bold; text-align: left;">Всего к оплате (9)</td>
+            <td style="border: 1px solid #000; font-weight: bold; text-align: right;">{SUM}</td>
+            <td style="border: 1px solid #000; font-weight: bold; text-align: center;">X</td>
+            <td style="border: 1px solid #000; font-weight: bold; text-align: center;">X</td>
+            <td style="border: 1px solid #000; font-weight: bold; text-align: right;">{TAX}</td>
+            <td style="border: 1px solid #000; font-weight: bold; text-align: right;">{FINISH}</td>
+            <td style="border-top: 1px solid #000; border-bottom: 1px solid #000;"> </td>
+            <td style="border-top: 1px solid #000; border-bottom: 1px solid #000;"> </td>
+            <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-right: 1px solid #000;"> </td>
+        </tr>
+    </table>
 </table>
 <table class="updskeleton" width="100%" border="0" cellspacing="0" cellpadding="0">
     <tbody>
