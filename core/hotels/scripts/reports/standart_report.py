@@ -2,6 +2,8 @@ import pandas as pd
 from django.db.models import Case, CharField, DateTimeField, ExpressionWrapper, F, FloatField, Func, Value, When
 from django.db.models.functions import Coalesce, Concat, Ceil, Floor, TruncMinute
 
+from hotels.utils.invoice import round_money_4_5, round_volume_by_spec
+
 from .utils import create_footer_and_stamp_signature
 
 
@@ -32,14 +34,112 @@ def create_df(
       округления. При необходимости изменить политику округления — корректируется именно здесь.
     - Параметр remuneration (процент от доли HOOPS, направляемый на вознаграждение сервиса) задается аргументом
       функции и влияет на соответствующие поля с суффиксами *_t и *_f.
+
+    ФОРМУЛЫ ФОРМИРОВАНИЯ СТОЛБЦОВ ОТЧЕТА:
+    ======================================
+
+    1. ФИО Исполнителя:
+       Формула: executer__middle_name + " " + executer__first_name + " " + executer__second_name
+       Описание: Конкатенация отчества, имени и фамилии исполнителя через пробелы.
+
+    2. Наименование профессии:
+       Формула: COALESCE(task__personal_profession__name, task__profession__name)
+       Описание: Приоритет персональной профессии, если задана; иначе — базовая профессия задачи.
+
+    3. Наименование услуги:
+       Формула: task__profession__description
+       Описание: Прямое поле — описание услуги из базовой профессии задачи.
+
+    4. Дата:
+       Формула: FORMAT(tz_convert(COALESCE(start_at, task__start_at), 'Europe/Moscow'), '%d.%m.%Y')
+       Описание: Дата начала работы (фактическая или плановая), конвертированная в московское время,
+                 обнуление секунд, форматирование в формат ДД.ММ.ГГГГ.
+
+    5. Ставка, руб.:
+       Формула: task__rent
+       Описание: Прямое поле — ставка оплаты за единицу времени/объема из задачи.
+
+    6. Время начала:
+       Формула: FORMAT(tz_convert(TruncMinute(COALESCE(start_at, task__start_at)), 'Europe/Moscow'), '%H:%M')
+       Описание: Время начала работы (фактическое или плановое), обнуление секунд, конвертация в МСК,
+                 форматирование в формат ЧЧ:ММ.
+
+    7. Время окончания:
+       Формула: FORMAT(tz_convert(TruncMinute(COALESCE(stop_at, task__start_at + INTERVAL task__duration HOUR)), 'Europe/Moscow'), '%H:%M')
+       Описание: Время окончания работы (фактическое или расчетное: старт + длительность), обнуление секунд,
+                 конвертация в МСК, форматирование в формат ЧЧ:ММ.
+
+    8. Объем услуг:
+       Формула: CEIL(COALESCE(volume_of_the_work, volume_time_t) * 100) / 100
+       где volume_time_t = (stop_teor_min - start_teor_min) / 3600000000
+       Описание: Объем работы в часах. Приоритет ручного объема (volume_of_the_work), иначе — расчетный
+                 по разнице времени начала и окончания (в наносекундах, деление на 3.6e9 для перевода в часы).
+                 Округление вверх до сотых долей часа.
+
+    9. Итого оплат, руб.:
+       Формула: FLOOR((volume_t * task__rent) * 100 + 0.5) / 100
+       Описание: Общая стоимость услуг = объем * ставка, округление до 2 знаков по правилу 4/5
+                 (математическое округление: floor(x*100+0.5)/100).
+
+    10. Стоимость услуг HOOPS Service:
+        Формула: round_money_4_5(salary_t - remuneration_of_the_service_t - salary_executer_t)
+        где:
+          salary_t = round_money_4_5(volume_t * task__rent_rounded)
+          remuneration_of_the_service_t = round_money_4_5(full_hoops_t * remuneration / 100)
+          salary_executer_t = round_money_4_5(salary_t - full_hoops_t)
+        Описание: Стоимость услуг HOOPS рассчитывается через вычитание (как в invoice: rent_for_hoops): 
+                  общая сумма минус вознаграждение минус выплата исполнителям. Все вычитаемые значения предварительно округлены.
+                  Соответствует формуле invoice: rent_for_hoops = rent - remuneration_for_executer - rent_for_executer.
+
+    11. Вознаграждение за исполнение поручения:
+        Формула: round_money_4_5(full_hoops_t * remuneration / 100)
+        где full_hoops_t = round_money_4_5(salary_t * task__profession__percent / 100)
+        Описание: Вознаграждение (как в invoice: remuneration_for_executer). Рассчитывается как 
+                  full_hoops_t * remuneration / 100, затем округляется. Соответствует формуле invoice:
+                  remuneration_for_executer = (rent - rent_for_executer) * remuneration_percent / 100.
+
+    12. Выплата исполнителям:
+        Формула: round_money_4_5(salary_t - full_hoops_t)
+        где full_hoops_t = round_money_4_5(salary_t * task__profession__percent / 100)
+        Описание: Общая стоимость услуг минус доля HOOPS (как в invoice: rent_for_executer). 
+                  Округление до 2 знаков по правилу 4/5.
+
+    13. Номер заявки:
+        Формула: task__id
+        Описание: Прямое поле — идентификатор задачи (заявки).
+
+    14. Статус заявки:
+        Формула: IF volume_of_the_work IS NOT NULL THEN correction_comment ELSE COALESCE(problem1, problem2, problem3, correction_comment)
+        где:
+          problem1 = IF task__is_approved = FALSE THEN 'Не согласована' ELSE NULL
+          problem2 = IF start_at IS NULL THEN 'Не было старта работы' ELSE NULL
+          problem3 = IF stop_at IS NULL THEN 'Не было стопа работы' ELSE NULL
+        Описание: При наличии ручного объема (корректировки) — комментарий коррекции; иначе — первая найденная
+                  проблема из списка: несогласованность, отсутствие старта, отсутствие стопа, комментарий коррекции.
+
+    15. Менеджер Заказчика:
+        Формула: task__manager__first_name + " " + task__manager__middle_name + " " + task__manager__second_name
+        Описание: Конкатенация имени, отчества и фамилии менеджера заявки через пробелы.
+
+    ПРИМЕЧАНИЯ:
+    - Все денежные расчеты используют теоретические значения (суффикс _t), основанные на плановых временах.
+    - Округление денежных сумм выполняется через round_money_4_5() (из hotels.utils.invoice) - учитывает только 3-й знак.
+    - Округление объема выполняется через round_volume_by_spec() (из hotels.utils.invoice) - условное округление вверх.
+    - ВАЖНО: Округления применяются ДО математических операций:
+      * Сначала округляются объем и ставка
+      * Затем выполняются расчеты с использованием уже округленных значений
+      * Затем округляются итоговые суммы
+    - Времена и даты конвертируются в таймзону Europe/Moscow перед форматированием.
+    - Секунды обнуляются на уровне ORM через TruncMinute для согласованности расчетов.
+    - Все расчеты выполняются в pandas после конвертации DataFrame для применения правильных функций округления.
     """
-    # ФИО
+    # ФИО Исполнителя
     queryset = queryset.annotate(
         executer_full_name=Concat(
             "executer__middle_name", Value(" "), "executer__first_name", Value(" "), "executer__second_name"
         )
     )
-    # имя профессии
+    # Наименование профессии
     queryset = queryset.annotate(profession_name=Coalesce("task__personal_profession__name", "task__profession__name"))
 
     class MinuteInterval(Func):
@@ -95,7 +195,7 @@ def create_df(
         )
     )
 
-    # объем работы с предположениями
+    # Объем услуг
     # volume_t — теоретический объем: Coalesce(ручной, расчетный теоретический) с округлением «вверх» до двух знаков
     # 1) Базовый объем теории
     queryset = queryset.annotate(volume_t_base=Coalesce("volume_of_the_work", "volume_time_t"))
@@ -109,7 +209,7 @@ def create_df(
         )
     )
 
-    # зарплата с предположениями
+    # Итого оплат, руб.
     # salary_t_raw — стоимость услуг по теоретическому объему: объем * ставка
     queryset = queryset.annotate(salary_t_raw=F("volume_t") * F("task__rent"))
     # salary_t — округление до 2 знаков по правилу 4/5: floor(x*100+0.5)/100
@@ -127,7 +227,7 @@ def create_df(
     # full_hoops_t — доля HOOPS по теоретической стоимости: salary_t * percent профессии / 100
     queryset = queryset.annotate(full_hoops_t=F("salary_t") * F("task__profession__percent") / 100)
 
-    # вознаграждение hoops service c предположениями
+    # Вознаграждение за исполнение поручения
     queryset = queryset.annotate(remuneration_of_the_service_t_raw=F("full_hoops_t") / 100 * remuneration)
     queryset = queryset.annotate(
         remuneration_of_the_service_t=ExpressionWrapper(
@@ -140,7 +240,7 @@ def create_df(
         )
     )
 
-    # стоимость услуг hoops service c предположениями
+    # Стоимость услуг HOOPS Service
     queryset = queryset.annotate(cost_of_the_service_t_raw=F("full_hoops_t") - F("remuneration_of_the_service_t"))
     queryset = queryset.annotate(
         cost_of_the_service_t=ExpressionWrapper(
@@ -153,7 +253,7 @@ def create_df(
         )
     )
 
-    # сколько получит Исполнитель с предположениями
+    # Выплата исполнителям
     queryset = queryset.annotate(salary_executer_t_raw=F("salary_t") - F("full_hoops_t"))
     queryset = queryset.annotate(
         salary_executer_t=ExpressionWrapper(
@@ -219,7 +319,7 @@ def create_df(
         )
     )
 
-    # описание
+    # Наименование услуги
     # Текущее описание услуги берется из базовой профессии (без приоритета персональной профессии)
     queryset = queryset.annotate(description=F("task__profession__description"))
 
@@ -250,7 +350,7 @@ def create_df(
         )
     )
 
-    # problem
+    # Статус заявки
     # problem_res — агрегированное поле проблем: первое непустое из problem1/2/3/correction_comment
     queryset = queryset.annotate(problem_res=Coalesce("problem1", "problem2", "problem3", "correction_comment"))
 
@@ -281,7 +381,7 @@ def create_df(
         )
     )
 
-    # менеджер
+    # Менеджер Заказчика
     # ФИО менеджера заявки (конкатенация ФИО)
     queryset = queryset.annotate(
         manager_full_name=Concat(
@@ -294,27 +394,21 @@ def create_df(
     )
 
     # Формируем плоский набор значений для построения DataFrame — выбираем только те поля, которые нужны для отчета
+    # ВАЖНО: Берем базовые значения БЕЗ округления для последующего пересчета в pandas с правильным округлением
     newarr = queryset.values(
-        "executer_full_name",
-        "profession_name",
-        "task__profession__description",
-        "task__rent",
-        "start_teor",
-        "stop_teor",
-        "volume_t",
-        "task__id",
-        "remuneration_of_the_service_f",
-        "manager_full_name",
-        "salary_t",
-        "cost_of_the_service_t",
-        "remuneration_of_the_service_t",
-        "salary_executer_t",
-        "task__start_at",
-        "problem",
-        "salary_f",
-        "cost_of_the_service_f",
-        "salary_executer_f",
-        "volume_f",
+        "executer_full_name",  # ФИО Исполнителя
+        "profession_name",  # Наименование профессии
+        "task__profession__description",  # Наименование услуги
+        "task__rent",  # Ставка, руб. (базовое значение, будет округлено в pandas)
+        "task__profession__percent",  # Процент HOOPS (нужен для расчетов)
+        "start_teor",  # используется для формирования "Время начала"
+        "stop_teor",  # используется для формирования "Время окончания"
+        "volume_t_base",  # Базовый объем услуг (БЕЗ округления, будет округлен в pandas)
+        "volume_f_base",  # Базовый фактический объем (БЕЗ округления, будет округлен в pandas)
+        "task__id",  # Номер заявки
+        "manager_full_name",  # Менеджер Заказчика
+        "task__start_at",  # используется для формирования "Дата"
+        "problem",  # Статус заявки
         "additional_date",
         "additional_description",
     )
@@ -323,6 +417,92 @@ def create_df(
     df = pd.DataFrame(newarr)
     df = df.reset_index(drop=True)
     df.index += 1
+
+    # --- ПРИМЕНЯЕМ ОКРУГЛЕНИЯ ИЗ INVOICE ПЕРЕД МАТЕМАТИЧЕСКИМИ ОПЕРАЦИЯМИ ---
+    # ВАЖНО: Сначала округляем объем и финансовые данные, затем используем их в расчетах
+    
+    # 1. Округляем объем услуг (теоретический) через round_volume_by_spec
+    df["volume_t"] = df["volume_t_base"].apply(
+        lambda x: float(round_volume_by_spec(x)) if pd.notnull(x) else x
+    )
+    
+    # 2. Округляем фактический объем через round_volume_by_spec
+    df["volume_f"] = df["volume_f_base"].apply(
+        lambda x: float(round_volume_by_spec(x)) if pd.notnull(x) else x
+    )
+    
+    # 3. Округляем ставку через round_money_4_5
+    df["task__rent_rounded"] = df["task__rent"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    
+    # 4. Рассчитываем итоговую оплату (теоретическая): округленный_объем * округленная_ставка, затем округляем результат
+    df["salary_t_raw"] = df["volume_t"] * df["task__rent_rounded"]
+    df["salary_t"] = df["salary_t_raw"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    
+    # 5. Рассчитываем долю HOOPS: salary_t * percent / 100, затем округляем
+    df["full_hoops_t_raw"] = df["salary_t"] * df["task__profession__percent"] / 100
+    df["full_hoops_t"] = df["full_hoops_t_raw"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    
+    # 6. Рассчитываем выплату исполнителям: salary_t - full_hoops_t, затем округляем (как в invoice: rent_for_executer)
+    df["salary_executer_t_raw"] = df["salary_t"] - df["full_hoops_t"]
+    df["salary_executer_t"] = df["salary_executer_t_raw"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    
+    # 7. Рассчитываем вознаграждение: full_hoops_t * remuneration / 100, затем округляем
+    # Это соответствует invoice: remuneration_for_executer = (rent - rent_for_executer) * remuneration_percent / 100
+    # где (rent - rent_for_executer) = full_hoops_t / volume, но на уровне итоговых сумм: full_hoops_t * remuneration / 100
+    df["remuneration_of_the_service_t_raw"] = df["full_hoops_t"] * remuneration / 100
+    df["remuneration_of_the_service_t"] = df["remuneration_of_the_service_t_raw"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    
+    # 8. Рассчитываем стоимость услуг HOOPS через вычитание (как в invoice): salary_t - remuneration_of_the_service_t - salary_executer_t
+    # Все вычитаемые значения уже округлены на предыдущих шагах
+    # Это соответствует invoice: rent_for_hoops = rent - remuneration_for_executer - rent_for_executer
+    # Или: cost_of_the_service = full_hoops - remuneration
+    df["cost_of_the_service_t_raw"] = df["salary_t"] - df["remuneration_of_the_service_t"] - df["salary_executer_t"]
+    df["cost_of_the_service_t"] = df["cost_of_the_service_t_raw"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    
+    # 9. Рассчитываем фактическую оплату: округленный_фактический_объем * округленная_ставка, затем округляем
+    df["salary_f_raw"] = df["volume_f"] * df["task__rent_rounded"]
+    df["salary_f"] = df["salary_f_raw"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    
+    # 10. Рассчитываем фактическую долю HOOPS: salary_f * percent / 100, затем округляем
+    df["full_hoops_f_raw"] = df["salary_f"] * df["task__profession__percent"] / 100
+    df["full_hoops_f"] = df["full_hoops_f_raw"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    
+    # 11. Рассчитываем фактическую выплату исполнителям: salary_f - full_hoops_f, затем округляем (как в invoice: rent_for_executer)
+    df["salary_executer_f_raw"] = df["salary_f"] - df["full_hoops_f"]
+    df["salary_executer_f"] = df["salary_executer_f_raw"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    
+    # 12. Рассчитываем фактическое вознаграждение: full_hoops_f * remuneration / 100, затем округляем
+    # Это соответствует invoice: remuneration_for_executer = (rent - rent_for_executer) * remuneration_percent / 100
+    df["remuneration_of_the_service_f_raw"] = df["full_hoops_f"] * remuneration / 100
+    df["remuneration_of_the_service_f"] = df["remuneration_of_the_service_f_raw"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    
+    # 13. Рассчитываем фактическую стоимость услуг HOOPS через вычитание (как в invoice): salary_f - remuneration_of_the_service_f - salary_executer_f
+    # Все вычитаемые значения уже округлены на предыдущих шагах
+    # Это соответствует invoice: rent_for_hoops = rent - remuneration_for_executer - rent_for_executer
+    df["cost_of_the_service_f_raw"] = df["salary_f"] - df["remuneration_of_the_service_f"] - df["salary_executer_f"]
+    df["cost_of_the_service_f"] = df["cost_of_the_service_f_raw"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
 
     # --- ОБНУЛЯЕМ СЕКУНДЫ У ВСЕХ ДАТ/ВРЕМЕНИ, ГДЕ ЭТО ВАЖНО ---
     # Список колонок, где нужно обнулять секунды (start_teor, stop_teor, task__start_at, additional_date)
@@ -334,10 +514,10 @@ def create_df(
     # Переводим "теоретические" времена в московскую таймзону для корректного отображения и формируем строки времени/даты
     df["start_moscow"] = df["start_teor"].dt.tz_convert("Europe/Moscow")
     df["stop_moscow"] = df["stop_teor"].dt.tz_convert("Europe/Moscow")
-    df["start_t"] = df["start_moscow"].dt.strftime("%H:%M")
-    df["stop_t"] = df["stop_moscow"].dt.strftime("%H:%M")
+    df["start_t"] = df["start_moscow"].dt.strftime("%H:%M")  # Время начала
+    df["stop_t"] = df["stop_moscow"].dt.strftime("%H:%M")  # Время окончания
 
-    df["task__start_at"] = df["start_moscow"].dt.strftime("%d.%m.%Y")
+    df["task__start_at"] = df["start_moscow"].dt.strftime("%d.%m.%Y")  # Дата
 
     # Проверка равенства: cost_of_the_service_t + remuneration_of_the_service_t + salary_executer_t == salary_t
     try:
@@ -446,21 +626,21 @@ def create_df(
     # Переименование колонок на человекочитаемые заголовки и формирование перечня финальных колонок
     df = df.rename(
         columns={
-            "executer_full_name": "ФИО Исполнителя",
-            "profession_name": "Наименование профессии",
-            "task__profession__description": "Наименование услуги",
-            "task__rent": "Ставка, руб.",
-            "start_t": "Время начала",
-            "stop_t": "Время окончания",
-            "volume_t": "Объем услуг",
-            "task__id": "Номер заявки",
-            "manager_full_name": "Менеджер Заказчика",
-            "salary_t": "Итого оплат, руб.",
-            "cost_of_the_service_t": "Стоимость услуг HOOPS Service",
-            "remuneration_of_the_service_t": "Вознаграждение за исполнение поручения",
-            "salary_executer_t": "Выплата исполнителям",
-            "task__start_at": "Дата",
-            "problem": "Статус заявки",
+            "executer_full_name": "ФИО Исполнителя",  # ФИО Исполнителя
+            "profession_name": "Наименование профессии",  # Наименование профессии
+            "task__profession__description": "Наименование услуги",  # Наименование услуги
+            "task__rent": "Ставка, руб.",  # Ставка, руб.
+            "start_t": "Время начала",  # Время начала
+            "stop_t": "Время окончания",  # Время окончания
+            "volume_t": "Объем услуг",  # Объем услуг
+            "task__id": "Номер заявки",  # Номер заявки
+            "manager_full_name": "Менеджер Заказчика",  # Менеджер Заказчика
+            "salary_t": "Итого оплат, руб.",  # Итого оплат, руб.
+            "cost_of_the_service_t": "Стоимость услуг HOOPS Service",  # Стоимость услуг HOOPS Service
+            "remuneration_of_the_service_t": "Вознаграждение за исполнение поручения",  # Вознаграждение за исполнение поручения
+            "salary_executer_t": "Выплата исполнителям",  # Выплата исполнителям
+            "task__start_at": "Дата",  # Дата
+            "problem": "Статус заявки",  # Статус заявки
             "additional_date": "Дата комментария",
             "additional_description": "Комментарий",
         }
