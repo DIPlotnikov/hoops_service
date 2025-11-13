@@ -89,7 +89,7 @@ class BillCreator(object):
             self._file_path = os.path.join(path_to, object, self._number, "bill.html")
         else:
             current_datetime = self.closing_date
-            suffix = "hops" if is_hoops else "executer"
+            suffix = "hoops" if is_hoops else "executer"
             self._file_path = os.path.join(
                 path_to,
                 object,
