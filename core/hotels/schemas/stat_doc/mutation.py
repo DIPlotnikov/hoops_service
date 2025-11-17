@@ -4,7 +4,7 @@ from datetime import timedelta
 import graphene
 
 from ..schema_handler import is_manager
-from ...models import AdminStatDoc, ExecuterStatDoc, ExecuterState, Hotel, RoleAdmin, StatDoc, Task
+from ...models import Admin, AdminStatDoc, ExecuterStatDoc, ExecuterState, Hotel, RoleAdmin, StatDoc, Task
 from ...schemas.schema_handler import getIDRole, is_admin, isAuth
 from ...schemas.stat_doc.input import (
     InputForAdminCreateReport,
@@ -14,7 +14,7 @@ from ...schemas.stat_doc.input import (
 )
 from ...scripts import excel_handler as ExH
 from ...scripts.reports.report_builder_by_pandas import ReportBuilder
-from ...scripts.reports.standart_report import create_df
+from ...scripts.reports.standart_report import create_standart_report
 from ...utils.tasks import (
     get_executer_by_period,
     get_normal_period_datetime,
@@ -73,7 +73,7 @@ class CreateStat(graphene.Mutation):
             (input.end_date + timedelta(minutes=-timezone_offset)).strftime("%d.%m.%y"),
         )
         if input.type == "STANDART_REPORT":
-            create_df(
+            create_standart_report(
                 tasks,
                 path=builder.path_storage,
                 period=period,
@@ -215,7 +215,7 @@ class AdminCreateReport(graphene.Mutation):
         if input.type == AdminStatDoc.TypeAdminReport.STANDART:
             executer_states = get_executer_by_period(input.start_date, input.end_date, hotel_id=input.hotel_id)
             # tasks = get_tasks_by_hotel_id_and_period(input.hotel_id, input.start_date, input.end_date)
-            create_df(
+            create_standart_report(
                 executer_states,
                 path=builder.path_storage,
                 period=period,

@@ -4,6 +4,7 @@ from django.db.models.functions import Coalesce, Concat, TruncMinute
 
 from hotels.utils.invoice import round_money_4_5, round_volume_by_spec
 from settings.models import get_remuneration
+from hotels.scripts.nds_handler import calc_tax
 
 from .utils import create_footer_and_stamp_signature
 
@@ -155,6 +156,7 @@ def prepare_queryset_data(queryset, remuneration=10):
         "task__profession__description",  # -> столбец "Наименование услуги"
         "task__rent",  # -> столбец "Ставка, руб." (базовое значение, будет округлено в pandas)
         "task__profession__percent",  # Процент HOOPS (нужен для расчетов)
+        "task__profession__numerate",  # Тип профессии (HOUR/SUIT) для группировки в закрывающих документах
         "start_teor",  # -> столбец "Время начала"
         "stop_teor",  # -> столбец "Время окончания"
         "volume_t_base",  # -> столбец "Объем услуг" (БЕЗ округления, будет округлен в pandas)
@@ -171,254 +173,23 @@ def prepare_queryset_data(queryset, remuneration=10):
     return list(newarr)
 
 
-def calculate_financial_data_old(data, remuneration=10):
+def calculate_financial_data(data, remuneration=10, nds=20.0):
     """
     Выполняет финансовые расчеты в pandas с применением округлений из invoice.
     
     Применяет округления и рассчитывает все финансовые поля согласно логике invoice:
     сначала цены за единицу, затем умножение на объем, затем округление итогов.
+    Также рассчитывает НДС и стоимости без НДС для закрывающих документов.
     
     @param data: Список словарей с базовыми данными из prepare_queryset_data
     @param remuneration: Процент вознаграждения от доли HOOPS
-    @return: DataFrame с рассчитанными финансовыми полями
-    """
-
-    print("--------------------------------")
-    print('RAW_DATA:')
-    data_obj = data[0]
-    for key, value in data_obj.items():
-        print(f"{key}: {value}")
-    print("--------------------------------")
-
-    # --- КОНВЕРТИРУЕМ В DataFrame ---
-    df = pd.DataFrame(data)
-    df = df.reset_index(drop=True)
-    df.index += 1
-
-    # --- ПРИМЕНЯЕМ ОКРУГЛЕНИЯ ИЗ INVOICE ПЕРЕД МАТЕМАТИЧЕСКИМИ ОПЕРАЦИЯМИ ---
-    # ВАЖНО: Приводим к логике invoice: сначала рассчитываем цены за единицу, затем умножаем на объем
-    
-    # 1. Округляем объем услуг (теоретический) через round_volume_by_spec
-    df["volume_t"] = df["volume_t_base"].apply(
-        lambda x: float(round_volume_by_spec(x)) if pd.notnull(x) else x
-    )
-    
-    # 2. Округляем фактический объем через round_volume_by_spec
-    df["volume_f"] = df["volume_f_base"].apply(
-        lambda x: float(round_volume_by_spec(x)) if pd.notnull(x) else x
-    )
-    print("--------------------------------")
-    print(df["volume_f"].iloc[0])
-    print("--------------------------------")   
-    
-    # 3. Рассчитываем цены за единицу (теоретические) БЕЗ округления (как в invoice)
-    # Цена услуг исполнителей за единицу: rent - (rent * prof_percent / 100)
-    df["rent_for_executer_t_raw"] = df["task__rent"] - (df["task__rent"] * df["task__profession__percent"] / 100)
-    
-    # Стоимость услуги HOOPS за единицу: (rent - rent_for_executer) * remuneration_percent / 100
-    df["rent_for_hoops_t_raw"] = (df["task__rent"] - df["rent_for_executer_t_raw"]) * remuneration / 100
-    
-    # Вознаграждение за единицу: rent - rent_for_hoops - rent_for_executer (через вычитание, как в invoice)
-    df["remuneration_for_executer_t_raw"] = df["task__rent"] - df["rent_for_hoops_t_raw"] - df["rent_for_executer_t_raw"]
-    
-    # 4. Округляем цены за единицу (как в invoice)
-    df["rent_for_executer_t"] = df["rent_for_executer_t_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    df["rent_for_hoops_t"] = df["rent_for_hoops_t_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    df["remuneration_for_executer_t"] = df["remuneration_for_executer_t_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    
-    # 5. Умножаем округленные цены за единицу на округленный объем (как в invoice)
-    df["salary_executer_t_raw"] = df["rent_for_executer_t"] * df["volume_t"]
-    # cost_of_the_service_t = стоимость услуг HOOPS Service (основная услуга, как hoops_cost в invoice)
-    # В invoice: hoops_cost = rent_for_hoops * worktime
-    # ИСПРАВЛЕНО: меняем местами, так как они были перепутаны
-    df["cost_of_the_service_t_raw"] = df["remuneration_for_executer_t"] * df["volume_t"]
-    # remuneration_of_the_service_t = вознаграждение за исполнение поручения (как hoops_remuneration в invoice)
-    # В invoice: hoops_remuneration = remuneration_for_executer * worktime
-    # ИСПРАВЛЕНО: меняем местами, так как они были перепутаны
-    df["remuneration_of_the_service_t_raw"] = df["rent_for_hoops_t"] * df["volume_t"]
-    
-    # 6. Округляем итоговые суммы (как в invoice)
-    df["salary_executer_t"] = df["salary_executer_t_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    df["cost_of_the_service_t"] = df["cost_of_the_service_t_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    df["remuneration_of_the_service_t"] = df["remuneration_of_the_service_t_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    
-    # 7. Рассчитываем итоговую оплату (теоретическая): сумма всех компонентов
-    df["salary_t"] = df["cost_of_the_service_t"] + df["remuneration_of_the_service_t"] + df["salary_executer_t"]
-    
-    # 8. Рассчитываем цены за единицу (фактические) БЕЗ округления (как в invoice)
-    # Используем те же формулы, что и для теоретических значений
-    df["rent_for_executer_f_raw"] = df["task__rent"] - (df["task__rent"] * df["task__profession__percent"] / 100)
-    df["rent_for_hoops_f_raw"] = (df["task__rent"] - df["rent_for_executer_f_raw"]) * remuneration / 100
-    df["remuneration_for_executer_f_raw"] = df["task__rent"] - df["rent_for_hoops_f_raw"] - df["rent_for_executer_f_raw"]
-    
-    # 9. Округляем фактические цены за единицу (как в invoice)
-    df["rent_for_executer_f"] = df["rent_for_executer_f_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    df["rent_for_hoops_f"] = df["rent_for_hoops_f_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    df["remuneration_for_executer_f"] = df["remuneration_for_executer_f_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    
-    # 10. Умножаем округленные фактические цены за единицу на округленный фактический объем (как в invoice)
-    df["salary_executer_f_raw"] = df["rent_for_executer_f"] * df["volume_f"]
-    # ИСПРАВЛЕНО: меняем местами, так как они были перепутаны
-    df["cost_of_the_service_f_raw"] = df["remuneration_for_executer_f"] * df["volume_f"]
-    # ИСПРАВЛЕНО: меняем местами, так как они были перепутаны
-    df["remuneration_of_the_service_f_raw"] = df["rent_for_hoops_f"] * df["volume_f"]
-    
-    # 11. Округляем фактические итоговые суммы (как в invoice)
-    df["salary_executer_f"] = df["salary_executer_f_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    df["cost_of_the_service_f"] = df["cost_of_the_service_f_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    df["remuneration_of_the_service_f"] = df["remuneration_of_the_service_f_raw"].apply(
-        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
-    )
-    
-    # 12. Рассчитываем итоговую фактическую оплату: сумма всех компонентов
-    df["salary_f"] = df["cost_of_the_service_f"] + df["remuneration_of_the_service_f"] + df["salary_executer_f"]
-
-    # --- ОБНУЛЯЕМ СЕКУНДЫ У ВСЕХ ДАТ/ВРЕМЕНИ, ГДЕ ЭТО ВАЖНО ---
-    # Список колонок, где нужно обнулять секунды (start_teor, stop_teor, task__start_at, additional_date)
-    for col in ["start_teor", "stop_teor", "task__start_at", "additional_date"]:
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors="coerce")
-            df[col] = df[col].apply(lambda x: x.replace(second=0, microsecond=0) if pd.notnull(x) else x)
-
-    # Переводим "теоретические" времена в московскую таймзону для корректного отображения и формируем строки времени/даты
-    df["start_moscow"] = df["start_teor"].dt.tz_convert("Europe/Moscow")
-    df["stop_moscow"] = df["stop_teor"].dt.tz_convert("Europe/Moscow")
-    df["start_t"] = df["start_moscow"].dt.strftime("%H:%M")  # Время начала
-    df["stop_t"] = df["stop_moscow"].dt.strftime("%H:%M")  # Время окончания
-
-    df["task__start_at"] = df["start_moscow"].dt.strftime("%d.%m.%Y")  # Дата
-
-    # Проверка равенства: cost_of_the_service_t + remuneration_of_the_service_t + salary_executer_t == salary_t
-    try:
-        # Фильтруем только валидные строки (не NaN)
-        valid_mask = (
-            df["cost_of_the_service_t"].notna()
-            & df["remuneration_of_the_service_t"].notna()
-            & df["salary_executer_t"].notna()
-            & df["salary_t"].notna()
-        )
-        
-        if valid_mask.any():
-            left_sum = (
-                df.loc[valid_mask, "cost_of_the_service_t"].astype(float)
-                + df.loc[valid_mask, "remuneration_of_the_service_t"].astype(float)
-                + df.loc[valid_mask, "salary_executer_t"].astype(float)
-            )
-            right_sum = df.loc[valid_mask, "salary_t"].astype(float)
-            mism = (left_sum.round(2) != right_sum.round(2))
-            
-            if mism.any():
-                cnt = int(mism.sum())
-                print(f"[StandardReport] Rounding mismatch rows (theory): {cnt}")
-                # Вывести детальную информацию для диагностики
-                mism_rows = df.loc[valid_mask].loc[mism]
-                for idx, row in mism_rows.head(10).iterrows():
-                    left = (
-                        float(row["cost_of_the_service_t"])
-                        + float(row["remuneration_of_the_service_t"])
-                        + float(row["salary_executer_t"])
-                    )
-                    right = float(row["salary_t"])
-                    diff = abs(left - right)
-                    task_id = row.get("task__id", "N/A")
-                    print(
-                        f"  Row {idx} (task_id={task_id}): "
-                        f"left={left:.2f}, right={right:.2f}, diff={diff:.4f} | "
-                        f"cost={row['cost_of_the_service_t']:.2f}, "
-                        f"rem={row['remuneration_of_the_service_t']:.2f}, "
-                        f"exec={row['salary_executer_t']:.2f}"
-                    )
-    except Exception as e:
-        print(f"[StandardReport] Rounding check failed: {e}")
-
-    # Проверка равенства (факт): cost_of_the_service_f + remuneration_of_the_service_f + salary_executer_f == salary_f
-    try:
-        # Фильтруем только валидные строки (не NaN)
-        valid_mask_f = (
-            df["cost_of_the_service_f"].notna()
-            & df["remuneration_of_the_service_f"].notna()
-            & df["salary_executer_f"].notna()
-            & df["salary_f"].notna()
-        )
-        
-        if valid_mask_f.any():
-            left_sum_f = (
-                df.loc[valid_mask_f, "cost_of_the_service_f"].astype(float)
-                + df.loc[valid_mask_f, "remuneration_of_the_service_f"].astype(float)
-                + df.loc[valid_mask_f, "salary_executer_f"].astype(float)
-            )
-            right_sum_f = df.loc[valid_mask_f, "salary_f"].astype(float)
-            mism_f = (left_sum_f.round(2) != right_sum_f.round(2))
-            
-            if mism_f.any():
-                cnt = int(mism_f.sum())
-                print(f"[StandardReport] Rounding mismatch rows (fact): {cnt}")
-                # Вывести детальную информацию для диагностики
-                mism_rows_f = df.loc[valid_mask_f].loc[mism_f]
-                for idx, row in mism_rows_f.head(10).iterrows():
-                    left = (
-                        float(row["cost_of_the_service_f"])
-                        + float(row["remuneration_of_the_service_f"])
-                        + float(row["salary_executer_f"])
-                    )
-                    right = float(row["salary_f"])
-                    diff = abs(left - right)
-                    task_id = row.get("task__id", "N/A")
-                    print(
-                        f"  Row {idx} (task_id={task_id}): "
-                        f"left={left:.2f}, right={right:.2f}, diff={diff:.4f} | "
-                        f"cost={row['cost_of_the_service_f']:.2f}, "
-                        f"rem={row['remuneration_of_the_service_f']:.2f}, "
-                        f"exec={row['salary_executer_f']:.2f}"
-                    )
-    except Exception as e:
-        print(f"[StandardReport] Rounding check (fact) failed: {e}")
-    
-    return df
-
-def calculate_financial_data(data, remuneration=10):
-    """
-    Выполняет финансовые расчеты в pandas с применением округлений из invoice.
-    
-    Применяет округления и рассчитывает все финансовые поля согласно логике invoice:
-    сначала цены за единицу, затем умножение на объем, затем округление итогов.
-    
-    @param data: Список словарей с базовыми данными из prepare_queryset_data
-    @param remuneration: Процент вознаграждения от доли HOOPS
+    @param nds: Ставка НДС (по умолчанию 20.0%)
     @return: Кортеж (DataFrame с рассчитанными финансовыми полями, итоговые суммы)
              Итоговые суммы: (itog_sum_fact, hs_sum_fact, executor_sum_fact, volume_sum_fact, hoops_remuneration_fact,
-                              itog_sum_teor, hs_sum_teor, executor_sum_teor, volume_sum_teor, hoops_remuneration_teor)
+                              itog_sum_teor, hs_sum_teor, executor_sum_teor, volume_sum_teor, hoops_remuneration_teor,
+                              total_price_invoice, total_sum_for_executer_invoice, total_tax_invoice)
     """
 
-    print("--------------------------------")
-    print('RAW_DATA:')
-    data_obj = data[0]
-    for key, value in data_obj.items():
-        print(f"{key}: {value}")
-    print("--------------------------------")
-    
     # --- КОНВЕРТИРУЕМ В DataFrame ---
     df = pd.DataFrame(data)
     df = df.reset_index(drop=True)
@@ -436,10 +207,6 @@ def calculate_financial_data(data, remuneration=10):
     df["volume_f"] = df["volume_f_base"].apply(
         lambda x: float(round_volume_by_spec(x)) if pd.notnull(x) else x
     )
-    print("--------------------------------")
-    print(df["volume_t"].iloc[0])
-    print(df["volume_f"].iloc[0])
-    print("--------------------------------")   
     
     # 3. Рассчитываем цены за единицу (как в invoice)
     # Цены за единицу одинаковы для теоретического и фактического расчета (не зависят от объема)
@@ -465,11 +232,6 @@ def calculate_financial_data(data, remuneration=10):
     df["remuneration_for_executer"] = df["remuneration_for_executer"].apply(
         lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
     )
-
-    print('rent_for_executer: ', df["rent_for_executer"].iloc[0])
-    print('rent_for_hoops: ', df["rent_for_hoops"].iloc[0])
-    print('remuneration_for_executer: ', df["remuneration_for_executer"].iloc[0])
-    print("--------------------------------")
     
     # 5. Умножаем округленные цены за единицу на округленный теоретический объем (как в invoice)
     df["salary_executer_t_raw"] = df["rent_for_executer"] * df["volume_t"]
@@ -495,17 +257,9 @@ def calculate_financial_data(data, remuneration=10):
     df["remuneration_of_the_service_t"] = df["remuneration_of_the_service_t_raw"].apply(
         lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
     )
-
-    print('salary_executer_t: ', df["salary_executer_t"].iloc[0])
-    print('cost_of_the_service_t: ', df["cost_of_the_service_t"].iloc[0])
-    print('remuneration_of_the_service_t: ', df["remuneration_of_the_service_t"].iloc[0])
-    print("--------------------------------")
     
     # 7. Рассчитываем итоговую оплату (теоретическая): сумма всех компонентов
     df["salary_t"] = df["cost_of_the_service_t"] + df["remuneration_of_the_service_t"] + df["salary_executer_t"]
-
-    print('salary_t: ', df["salary_t"].iloc[0])
-    print("--------------------------------")
     
     # 8. Умножаем округленные цены за единицу на округленный фактический объем (как в invoice)
     # Используем те же цены за единицу, что и для теоретического расчета
@@ -533,17 +287,36 @@ def calculate_financial_data(data, remuneration=10):
         lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
     )
 
-    print('salary_executer_f: ', df["salary_executer_f"].iloc[0])
-    print('cost_of_the_service_f: ', df["cost_of_the_service_f"].iloc[0])
-    print('remuneration_of_the_service_f: ', df["remuneration_of_the_service_f"].iloc[0])
-    print("--------------------------------")
-    
-
     # 12. Рассчитываем итоговую фактическую оплату: сумма всех компонентов
     df["salary_f"] = df["cost_of_the_service_f"] + df["remuneration_of_the_service_f"] + df["salary_executer_f"]
 
-    print('salary_f: ', df["salary_f"].iloc[0])
-    print("--------------------------------")
+    # 13. Расчет НДС для фактических сумм (для закрывающих документов)
+    # НДС для основной услуги HOOPS Service
+    df["nds_cost_of_the_service_f"] = df["cost_of_the_service_f"].apply(
+        lambda x: float(calc_tax(x, nds)) if pd.notnull(x) else x
+    )
+    # НДС для вознаграждения
+    df["nds_remuneration_of_the_service_f"] = df["remuneration_of_the_service_f"].apply(
+        lambda x: float(calc_tax(x, nds)) if pd.notnull(x) else x
+    )
+    # Услуги исполнителей не облагаются НДС
+    df["nds_salary_executer_f"] = 0.0
+
+    # 14. Расчет стоимости без НДС для фактических сумм (для закрывающих документов)
+    df["cost_of_the_service_f_without_tax"] = df["cost_of_the_service_f"] - df["nds_cost_of_the_service_f"]
+    df["remuneration_of_the_service_f_without_tax"] = df["remuneration_of_the_service_f"] - df["nds_remuneration_of_the_service_f"]
+    df["salary_executer_f_without_tax"] = df["salary_executer_f"] - df["nds_salary_executer_f"]
+
+    # Округляем стоимости без НДС
+    df["cost_of_the_service_f_without_tax"] = df["cost_of_the_service_f_without_tax"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    df["remuneration_of_the_service_f_without_tax"] = df["remuneration_of_the_service_f_without_tax"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
+    df["salary_executer_f_without_tax"] = df["salary_executer_f_without_tax"].apply(
+        lambda x: float(round_money_4_5(x)) if pd.notnull(x) else x
+    )
 
     # --- ОБНУЛЯЕМ СЕКУНДЫ У ВСЕХ ДАТ/ВРЕМЕНИ, ГДЕ ЭТО ВАЖНО ---
     # Список колонок, где нужно обнулять секунды (start_teor, stop_teor, task__start_at, additional_date)
@@ -662,22 +435,19 @@ def calculate_financial_data(data, remuneration=10):
         round(df["remuneration_of_the_service_t"].sum(), 2),
     )
     
+    # Итоговые суммы для закрывающих документов (invoice)
+    # total_price = общая сумма HOOPS (основная услуга + вознаграждение)
+    total_price_invoice = round((df["cost_of_the_service_f"].sum() + df["remuneration_of_the_service_f"].sum()), 2)
+    # total_sum_for_executer = сумма услуг исполнителей
+    total_sum_for_executer_invoice = round(df["salary_executer_f"].sum(), 2)
+    # total_tax = общий НДС (НДС основной услуги + НДС вознаграждения)
+    total_tax_invoice = round((df["nds_cost_of_the_service_f"].sum() + df["nds_remuneration_of_the_service_f"].sum()), 2)
+    
     totals = (
         itog_sum_fact, hs_sum_fact, executor_sum_fact, volume_sum_fact, hoops_remuneration_fact,
-        itog_sum_teor, hs_sum_teor, executor_sum_teor, volume_sum_teor, hoops_remuneration_teor
+        itog_sum_teor, hs_sum_teor, executor_sum_teor, volume_sum_teor, hoops_remuneration_teor,
+        total_price_invoice, total_sum_for_executer_invoice, total_tax_invoice
     )
-    print('itog_sum_fact: ', itog_sum_fact)
-    print('hs_sum_fact: ', hs_sum_fact)
-    print('executor_sum_fact: ', executor_sum_fact)
-    print('volume_sum_fact: ', volume_sum_fact)
-    print('hoops_remuneration_fact: ', hoops_remuneration_fact)
-    print("--------------------------------")
-    print('itog_sum_teor: ', itog_sum_teor)
-    print('hs_sum_teor: ', hs_sum_teor)
-    print('executor_sum_teor: ', executor_sum_teor)
-    print('volume_sum_teor: ', volume_sum_teor)
-    print('hoops_remuneration_teor: ', hoops_remuneration_teor)
-    print("--------------------------------")
     
     return df, totals
 
@@ -696,7 +466,9 @@ def create_excel_document(
     @param hotel_name: Название гостиницы для отображения в шапке
     @param totals: Кортеж с итоговыми суммами из calculate_financial_data
                    (itog_sum_fact, hs_sum_fact, executor_sum_fact, volume_sum_fact, hoops_remuneration_fact,
-                    itog_sum_teor, hs_sum_teor, executor_sum_teor, volume_sum_teor, hoops_remuneration_teor)
+                    itog_sum_teor, hs_sum_teor, executor_sum_teor, volume_sum_teor, hoops_remuneration_teor,
+                    total_price_invoice, total_sum_for_executer_invoice, total_tax_invoice)
+                   Последние 3 значения используются только для закрывающих документов и игнорируются в стандартном отчете
     """
     # Распаковываем итоговые суммы (рассчитаны в calculate_financial_data)
     if totals is None:
@@ -716,8 +488,11 @@ def create_excel_document(
             round(df["remuneration_of_the_service_t"].sum(), 2),
         )
     else:
+        # Распаковываем только первые 10 значений (для стандартного отчета)
+        # Последние 3 значения (total_price_invoice, total_sum_for_executer_invoice, total_tax_invoice) используются только для закрывающих документов
         itog_sum_fact, hs_sum_fact, executor_sum_fact, volume_sum_fact, hoops_remuneration_fact, \
-        itog_sum_teor, hs_sum_teor, executor_sum_teor, volume_sum_teor, hoops_remuneration_teor = totals
+        itog_sum_teor, hs_sum_teor, executor_sum_teor, volume_sum_teor, hoops_remuneration_teor, \
+        *_ = totals  # Игнорируем последние 3 значения для invoice
 
 
     # Переименование колонок на человекочитаемые заголовки и формирование перечня финальных колонок
@@ -891,7 +666,7 @@ def create_excel_document(
 
 
 # pip install xlsxwriter
-def create_df(
+def create_standart_report(
     queryset, path="hotels/scripts/reports/result.xlsx", period="test period", hotel_name="test name", remuneration=10
 ):
     """

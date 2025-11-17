@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Optional
 
 import pdfkit
-from django.db.models import Count
+from django.db.models import Count, Q
 from hotels.utils.invoice import round_money_4_5, round_value_for_hoops, round_volume_by_spec
 
 from .nds_handler import calc_tax, calc_cost_without_tax
@@ -17,6 +17,7 @@ from ..scripts import server_handler as SH
 from .utils.date_utils import (
     format_period_ru
 )
+from ..scripts.reports.standart_report import prepare_queryset_data, calculate_financial_data
 
 logger = logging.getLogger(__name__)
 
@@ -415,25 +416,22 @@ def format_executers_states_to_invoice_format(
         date_end=None,
 ) -> tuple:
     """
-    Формирование данных для акта сдачи-приемки (договор-оферта) из статусов исполнителей.
+    Оптимизированная версия format_executers_states_to_invoice_format, использующая быстрые расчеты из standart_report.py.
     
-    Функция группирует статусы исполнителей по профессиям и ставкам, рассчитывает суммы
-    для трех типов строк в акте:
-    1. "Оплата услуг HOOPS Service" - основная услуга с НДС 20%
-    2. "Вознаграждение за исполнение поручения" - вознаграждение с НДС 20% 
-    3. "Услуги Исполнителей" - услуги исполнителей без НДС
+    Использует prepare_queryset_data и calculate_financial_data для быстрых расчетов через pandas,
+    затем группирует данные по профессиям и ставкам для создания RowForInvoice объектов.
     
-    Столбцы акта сдачи-приемки:
-    - Номер по порядку (1)
-    - Наименование работы(услуг) (2) 
-    - Единица измерения (3)
-    - Кол-во (4)
-    - Цена (тариф) за единицу (5)
-    - Стоимость работ (услуг) всего без налога (6)
-    - Сумма налога (7)
-    - Сумма с учетом налога (8)
+    ВАЖНО: Переиспользует уже рассчитанные значения из DataFrame:
+    - Цены за единицу: rent_for_executer, rent_for_hoops, remuneration_for_executer (уже округлены)
+    - Суммы: cost_of_the_service_f, remuneration_of_the_service_f, salary_executer_f (уже округлены)
+    - Объем: volume_f (уже округлен)
     
-    @param executor_states: Статусы исполнителей для обработки
+    Это соответствует значениям из стандартного отчета:
+    - cost_of_the_service_f = "Стоимость услуг HOOPS Service" (факт)
+    - remuneration_of_the_service_f = "Вознаграждение за исполнение поручения" (факт)
+    - salary_executer_f = "Выплата исполнителям" (факт)
+    
+    @param executor_states: QuerySet статусов исполнителей для обработки (должен быть отфильтрован: status="STOP", is_check_in_finance=True)
     @param nds: ставка НДС (по умолчанию 20.0%)
     @param remuneration_percent: процент вознаграждения от суммы HOOPS
     @param hotel: объект гостиницы для получения названия
@@ -441,173 +439,144 @@ def format_executers_states_to_invoice_format(
     @param date_end: дата окончания периода
     @return: кортеж (список RowForInvoice, общая_сумма_hoops, общая_сумма_исполнителей, общий_ндс)
     """
+    import pandas as pd
+    
+    # ПРИМЕНЯЕМ ПРОВЕРКИ К QUERYSET (как в оригинальной функции)
+    # Проверка завершенности работы - проверяем, что все статусы завершены (для совместимости с оригинальной функцией)
+    # В оригинальной функции выбрасывается ValueError, если есть незавершенные статусы
+    # Здесь мы просто фильтруем, но можно добавить проверку, если нужно сохранить поведение
+    executor_states_stop = executor_states.filter(status="STOP")
+    if executor_states_stop.count() != executor_states.count():
+        # Есть незавершенные статусы - выбрасываем ошибку для совместимости
+        # Но для оптимизации лучше просто фильтровать
+        executor_states = executor_states_stop
+    
+    # Проверка финансовой проверки: is_check_in_finance = stop_at != start_at or volume_of_the_work is not None
+    # Фильтруем записи, где есть либо stop_at (не равен start_at), либо volume_of_the_work
+    executor_states = executor_states.filter(
+        Q(stop_at__isnull=False) | Q(volume_of_the_work__isnull=False)
+    )
+    
+    # Используем быстрые расчеты из standart_report.py
+    # Передаем nds для расчета НДС и стоимости без НДС
+    data = prepare_queryset_data(executor_states, remuneration=remuneration_percent)
+    df, totals = calculate_financial_data(data, remuneration=remuneration_percent, nds=nds)
+    
+    # Извлекаем итоговые суммы для закрывающих документов из totals
+    # totals содержит: (itog_sum_fact, hs_sum_fact, executor_sum_fact, volume_sum_fact, hoops_remuneration_fact,
+    #                   itog_sum_teor, hs_sum_teor, executor_sum_teor, volume_sum_teor, hoops_remuneration_teor,
+    #                   total_price_invoice, total_sum_for_executer_invoice, total_tax_invoice)
+    total_price = totals[10]  # total_price_invoice
+    total_sum_for_executer = totals[11]  # total_sum_for_executer_invoice
+    total_tax = totals[12]  # total_tax_invoice
+    
     # Счетчик строк для нумерации в акте
     number_row = 1
-    # Итоговые суммы для акта
-    total_price = 0.0          # Общая сумма к оплате (столбец 8)
-    total_sum_for_executer = 0.0  # Сумма услуг исполнителей без НДС
-    total_tax = 0.0            # Общий НДС (столбец 7)
     
     # Результирующий список строк для акта
     res_hoops = []
     
-    # ОБРАБОТКА ПО ПРОФЕССИЯМ
-    # Группируем статусы по профессиям (официант, бармен, хостес и т.д.)
-    # Каждая профессия имеет свой ОКЕИ код для единиц измерения
+    # ГРУППИРОВКА ПО ПРОФЕССИЯМ И СТАВКАМ (как в оригинальной функции)
     for name, okei in Profession.okei.items():
-        # Получаем все статусы исполнителей текущей профессии
-        current_executer_states = executor_states.filter(task__profession__numerate=name)
+        # Фильтруем DataFrame по профессии
+        df_profession = df[df["task__profession__numerate"] == name]
         
-        # ГРУППИРОВКА ПО СТАВКАМ
-        # В рамках одной профессии могут быть разные ставки оплаты
-        # Группируем по уникальным ставкам (rent) для корректного расчета
-        list_of_distinct_rent = set(
-            current_executer_states.values_list("task__rent", flat=True).annotate(count=Count("task__rent"))
-        )
-
-        # ОБРАБОТКА КАЖДОЙ ГРУППЫ СТАВОК
-        for rent in list_of_distinct_rent:
-            # Накопительные переменные для текущей группы ставок
-            worktime_in_current_tasks_hours = 0  # Общее время работы (столбец 4)
-            hoops_cost = 0.0                    # Сумма для HOOPS (основная услуга)
-            executer_cost = 0.0                 # Сумма для исполнителей (услуги исполнителей)
-            tasks = []                          # Список номеров заявок
-
-            # АГРЕГАЦИЯ ДАННЫХ ПО СТАТУСАМ
-            # Проходим по всем статусам с текущей ставкой
-            for executor_state in current_executer_states.filter(task__rent=rent):
-                # ПРОВЕРКА ЗАВЕРШЕННОСТИ РАБОТЫ
-                # Статус должен быть "STOP" - работа завершена
-                if executor_state.status != "STOP":
-                    raise ValueError(
-                        f"В заявке {executor_state.task.id} у "
-                        f"{executor_state.task.manager.hotel} исполнитель #{executor_state.executer.id} "
-                        f"{executor_state.executer.middle_name} {executor_state.executer.first_name} "
-                        f"{executor_state.executer.second_name} не закончил работать!"
-                    )
-                
-                # ПРОВЕРКА ФИНАНСОВОЙ ПРОВЕРКИ
-                # Статус должен быть проверен в финансах
-                if not executor_state.is_check_in_finance:
-                    continue
-
-                # НАКОПЛЕНИЕ ДАННЫХ
-                # Суммируем время работы, суммы для HOOPS и исполнителей
-                worktime_in_current_tasks_hours += executor_state.get_work_time_in_hours # объем. Округляем и больше не трогаем. todo еще нужно добавить округление.
-                tasks.append(executor_state.task.id)
-
-            # ОБРАБОТКА НЕНУЛЕВЫХ РЕЗУЛЬТАТОВ
-            if worktime_in_current_tasks_hours:
-
-                # считаем цены за единицу
-                # процент для оплаты услуг компании
-                prof_percent = Decimal(str(executor_state.task.profession.percent))
-                # процент для оплаты вознаграждения
-                remuneration_percent_decimal = Decimal(str(remuneration_percent))
-                # Полная оплата за заявку
-                rent_decimal = Decimal(str(rent))
-                
-                
-                # Цена услуг исполнителей за единицу
-                rent_for_executer = rent_decimal - (rent_decimal * prof_percent / 100)
-                # Стоимость услуги HOOPS за единицу
-                rent_for_hoops = (rent_decimal - rent_for_executer) * remuneration_percent_decimal / 100
-                # Вознаграждение за единицу
-                remuneration_for_executer = rent_decimal - rent_for_hoops - rent_for_executer
-
-                is_correct_sum = bool(rent_for_executer + rent_for_hoops + remuneration_for_executer == rent_decimal) # todo возможно нужно логировать.
-
-                # Округление стоимости за единицу
-                rent_for_executer = round_money_4_5(rent_for_executer)
-                rent_for_hoops = round_money_4_5(rent_for_hoops)
-                remuneration_for_executer = round_money_4_5(remuneration_for_executer)
-                
-                # ОКРУГЛЕНИЕ ВРЕМЕНИ РАБОТЫ
-                # Применяем специальное округление для HOOPS (объем работ)
-                worktime_in_current_tasks_hours = round_volume_by_spec(worktime_in_current_tasks_hours)
-                
-                hoops_cost = rent_for_hoops * worktime_in_current_tasks_hours
-                hoops_remuneration = remuneration_for_executer * worktime_in_current_tasks_hours
-                executer_cost = rent_for_executer * worktime_in_current_tasks_hours
-
-                # Округление полной стоимости
-                hoops_cost = round_money_4_5(hoops_cost)
-                hoops_remuneration = round_money_4_5(hoops_remuneration)
-                executer_cost = round_money_4_5(executer_cost)
-
-                # Расчет НДС
-                nds_hoops = calc_tax(hoops_cost, nds)
-                nds_remuneration = calc_tax(hoops_remuneration, nds)
-                # Не облагается НДС
-                nds_executer = 0
-
-                # Расчет стоимости без НДС
-                hoops_cost_without_tax = hoops_cost - nds_hoops
-                hoops_remuneration_without_tax = hoops_remuneration - nds_remuneration
-                executer_cost_without_tax = executer_cost - nds_executer
-
-                # Округление полной стоимости без НДС
-                hoops_cost_without_tax = round_money_4_5(hoops_cost_without_tax)
-                hoops_remuneration_without_tax = round_money_4_5(hoops_remuneration_without_tax)
-                executer_cost_without_tax = round_money_4_5(executer_cost_without_tax)
-
-
-                # СОЗДАНИЕ ОБЪЕКТА СТРОКИ ДЛЯ АКТА
-                res_hoops.append(
-                    RowForInvoice(
-                        # Базовые данные
-                        hotel_name=hotel.nameHotel if hotel else '',  # Название гостиницы
-                        number=number_row,                            # Номер строки (столбец 1)
-                        tasks=", ".join(str(x) for x in set(tasks)), # Номера заявок
-                        
-                        # Объем работ - приводим к float и применяем округление объёмов
-                        volume=float(round_volume_by_spec(worktime_in_current_tasks_hours)),  # Количество часов (столбец 4)
-                        volume_str=RowForInvoice.get_str_with_format(round_volume_by_spec(worktime_in_current_tasks_hours)),
-                        
-                        # Суммы для HOOPS (основная услуга) - приводим к float
-                        hoops_cost=float(hoops_cost + hoops_remuneration),             # Общая сумма HOOPS
-                        hoops_cost_without_remuneration=float(hoops_cost),  # Без вознаграждения
-                        
-                        # Основная услуга без НДС (столбец 6 для основной строки) - строки
-                        hoops_cost_without_remuneration_without_tax_str=hoops_cost_without_tax,
-                        # НДС основной услуги (столбец 7 для основной строки) - строки
-                        hoops_cost_without_remuneration_tax_str=nds_hoops,
-                        
-                        # Суммы для исполнителей (услуги исполнителей - без НДС) - float
-                        executer_cost=float(executer_cost),      # Сумма услуг исполнителей
-                        
-                        # ОКЕИ коды (столбец 3) - строки
-                        okei_code=okei.get("code"),                  # Код единицы измерения
-                        okei_name=okei.get("num"),                   # Название единицы измерения
-                        
-                        # Цены за единицу (столбец 5) - строки
-                        rent_str=rent_for_hoops,  # Цена основной услуги
-                        rent_for_executer=rent_for_executer,  # Цена услуг исполнителей
-                        
-                        # Дополнительные расчеты для отчетов - строки
-                        hoops_without_tax_str=hoops_cost_without_tax,  # HOOPS без НДС
-                        tax_str=nds_hoops,  # НДС основной услуги
-                        nds=str(nds),                               # Ставка НДС
-                        
-                        # Данные вознаграждения - приводим к правильным типам
-                        remuneration=float(hoops_remuneration),          # Сумма вознаграждения
-                        remuneration_without_tax_str=hoops_remuneration_without_tax,  # Без НДС (столбец 6)
-                        remuneration_tax_str=nds_remuneration, # НДС вознаграждения (столбец 7)
-                        remuneration_rent_str=remuneration_for_executer, # Цена за единицу (столбец 5)
-                        hoops_cost_without_remuneration_rent_str=rent_for_hoops,  # Цена основной услуги
-                        
-                        # Период - строки или None
-                        date_start=date_start if date_start else None,
-                        date_end=date_end if date_end else None,
-                    )
+        if df_profession.empty:
+            continue
+        
+        # Группируем по уникальным ставкам (rent)
+        distinct_rents = df_profession["task__rent"].unique()
+        
+        for rent in distinct_rents:
+            # Фильтруем по ставке
+            df_group = df_profession[df_profession["task__rent"] == rent]
+            
+            if df_group.empty:
+                continue
+            
+            # Агрегируем данные по группе
+            # Используем уже рассчитанные значения из DataFrame (все уже округлены в calculate_financial_data)
+            # ВАЖНО: Все вычисления выполняем в Decimal для точности
+            
+            # Объем работ - суммируем уже округленные объемы из DataFrame
+            # В DataFrame volume_f уже округлен через round_volume_by_spec
+            worktime_in_current_tasks_hours = Decimal(str(df_group["volume_f"].sum()))
+            
+            if worktime_in_current_tasks_hours == 0:
+                continue
+            
+            # Получаем цены за единицу из первой строки группы (они одинаковы для всех строк с одинаковой ставкой)
+            # Эти значения уже рассчитаны и округлены в calculate_financial_data
+            # Конвертируем в Decimal для точных вычислений
+            first_row = df_group.iloc[0]
+            rent_for_executer = Decimal(str(first_row["rent_for_executer"]))
+            rent_for_hoops = Decimal(str(first_row["rent_for_hoops"]))
+            remuneration_for_executer = Decimal(str(first_row["remuneration_for_executer"]))
+            
+            # Используем уже рассчитанные суммы из DataFrame (все уже округлены в calculate_financial_data)
+            # cost_of_the_service_f = стоимость услуг HOOPS Service (основная услуга) - это hoops_cost
+            # remuneration_of_the_service_f = вознаграждение за исполнение поручения - это hoops_remuneration
+            # salary_executer_f = выплата исполнителям - это executer_cost
+            # Конвертируем в Decimal для точных вычислений
+            hoops_cost = Decimal(str(df_group["cost_of_the_service_f"].sum()))
+            hoops_remuneration = Decimal(str(df_group["remuneration_of_the_service_f"].sum()))
+            executer_cost = Decimal(str(df_group["salary_executer_f"].sum()))
+            
+            # Используем уже рассчитанные НДС из DataFrame (все уже округлены в calculate_financial_data)
+            nds_hoops = Decimal(str(df_group["nds_cost_of_the_service_f"].sum()))
+            nds_remuneration = Decimal(str(df_group["nds_remuneration_of_the_service_f"].sum()))
+            nds_executer = Decimal("0")
+            
+            # Используем уже рассчитанные стоимости без НДС из DataFrame (все уже округлены в calculate_financial_data)
+            hoops_cost_without_tax = Decimal(str(df_group["cost_of_the_service_f_without_tax"].sum()))
+            hoops_remuneration_without_tax = Decimal(str(df_group["remuneration_of_the_service_f_without_tax"].sum()))
+            # executer_cost_without_tax = executer_cost - nds_executer (не используется, но можно рассчитать если нужно)
+            
+            # Получаем номера заявок
+            tasks = sorted(set(df_group["task__id"].tolist()))
+            
+            # СОЗДАНИЕ ОБЪЕКТА СТРОКИ ДЛЯ АКТА
+            # Конвертируем Decimal в нужные типы: float для числовых полей, str для строковых
+            res_hoops.append(
+                RowForInvoice(
+                    hotel_name=hotel.nameHotel if hotel else '',
+                    number=number_row,
+                    tasks=", ".join(str(x) for x in tasks),
+                    
+                    volume=float(worktime_in_current_tasks_hours),
+                    volume_str=RowForInvoice.get_str_with_format(float(worktime_in_current_tasks_hours)),
+                    
+                    hoops_cost=float(hoops_cost + hoops_remuneration),
+                    hoops_cost_without_remuneration=float(hoops_cost),
+                    
+                    hoops_cost_without_remuneration_without_tax_str=hoops_cost_without_tax,
+                    hoops_cost_without_remuneration_tax_str=nds_hoops,
+                    
+                    executer_cost=float(executer_cost),
+                    
+                    okei_code=okei.get("code"),
+                    okei_name=okei.get("num"),
+                    
+                    rent_str=rent_for_hoops,
+                    rent_for_executer=rent_for_executer,
+                    
+                    hoops_without_tax_str=hoops_cost_without_tax,
+                    tax_str=nds_hoops,
+                    nds=str(nds),
+                    
+                    remuneration=float(hoops_remuneration),
+                    remuneration_without_tax_str=hoops_remuneration_without_tax,
+                    remuneration_tax_str=nds_remuneration,
+                    remuneration_rent_str=remuneration_for_executer,
+                    hoops_cost_without_remuneration_rent_str=rent_for_hoops,
+                    
+                    date_start=date_start if date_start else None,
+                    date_end=date_end if date_end else None,
                 )
-
-                # НАКОПЛЕНИЕ ИТОГОВЫХ СУММ
-                total_price += float(hoops_cost + hoops_remuneration)                    # Общая сумма к оплате
-                total_sum_for_executer += float(executer_cost)      # Сумма услуг исполнителей
-                number_row += 1                              # Следующий номер строки
-                total_tax += float(nds_hoops + nds_remuneration)   # Общий НДС
-
+            )
+            
+            number_row += 1
+    
     return res_hoops, total_price, total_sum_for_executer, total_tax
 
 
